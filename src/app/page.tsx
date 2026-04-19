@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import AppHeader from '@/components/AppHeader';
@@ -11,11 +11,11 @@ import { AI_POINT_CONFIG, SEED_TASKS, SEED_ACHIEVEMENTS, SEED_UNLOCKED_ACHIEVEME
 import { calculateTaskPoints, checkAchievementTriggers, checkRetroactiveUnlock } from '@/lib/taskEngine';
 import { supabase } from '@/lib/supabaseClient';
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN APP — Single-Page with Tab-Based View Switching
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// MAIN APP â€” Single-Page with Tab-Based View Switching
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 export default function MeritKPIApp() {
-  // ── Auth & Global State ──
+  // â”€â”€ Auth & Global State â”€â”€
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authProfile, setAuthProfile] = useState<any>(null); // Real profile from Supabase
   const [activeView, setActiveView] = useState('staff');
@@ -33,7 +33,7 @@ export default function MeritKPIApp() {
   const [orgConfig, setOrgConfig] = useState<OrganizationConfig>(SEED_ORG_CONFIG);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
 
-  // ── Database Fetching ──
+  // â”€â”€ Database Fetching â”€â”€
   useEffect(() => {
     if (isLoggedIn) {
       const fetchData = async () => {
@@ -71,17 +71,17 @@ export default function MeritKPIApp() {
     }
   }, [isLoggedIn, authProfile]);
 
-  // NOTE: Auto-Assignment removed — role tasks are now shown as guidelines in the Mission Brief
+  // NOTE: Auto-Assignment removed â€” role tasks are now shown as guidelines in the Mission Brief
   // sidebar, not auto-injected into the task list. Staff create their own tasks aligned to goals.
 
 
-  // ── Modal State ──
+  // â”€â”€ Modal State â”€â”€
   const [profileOpen, setProfileOpen] = useState(false);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addAchOpen, setAddAchOpen] = useState(false);
   const [addModuleOpen, setAddModuleOpen] = useState(false);
 
-  // ── Timer for running tasks ──
+  // â”€â”€ Timer for running tasks â”€â”€
   useEffect(() => {
     const interval = setInterval(() => {
       setTasks(prev => prev.map(t => {
@@ -93,7 +93,7 @@ export default function MeritKPIApp() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Task Actions ──
+  // â”€â”€ Task Actions â”€â”€
   const handleAddTask = useCallback((title: string, note: string, mins: number, status: 'queued' | 'running', commencementDate: string, collaborators: string[] = [], workflow: { id: string; name: string; isCompleted: boolean }[] = [], collaboratorIds: string[] = [], frequency: TaskFrequency = { type: 'once' }) => {
     const calc = calculateTaskPoints(title, note, mins, AI_POINT_CONFIG);
     const currentUserId = authProfile?.id || authProfile?.access_id || 'local';
@@ -119,7 +119,7 @@ export default function MeritKPIApp() {
     if (newUnlocks.length > 0) {
       setUnlockedIds(prev => [...prev, ...newUnlocks]);
       const achTitle = achievements.find(a => a.id === newUnlocks[0])?.title;
-      setTimeout(() => alert(`🏆 ACHIEVEMENT UNLOCKED: ${achTitle}`), 300);
+      setTimeout(() => alert(`ðŸ† ACHIEVEMENT UNLOCKED: ${achTitle}`), 300);
       
       setActivityLog(prev => [{
         id: 'act-' + Date.now().toString() + Math.random(),
@@ -138,7 +138,7 @@ export default function MeritKPIApp() {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'running' as const } : t));
   };
 
-  // ── Helper: get next recurrence date string ──
+  // â”€â”€ Helper: get next recurrence date string â”€â”€
   const getNextRecurrenceDate = (task: Task): string => {
     const now = new Date();
     const klNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
@@ -179,7 +179,7 @@ export default function MeritKPIApp() {
 
         const isRecurring = t.frequency && t.frequency.type !== 'once';
         if (isRecurring) {
-          // Reset task for next occurrence — keeps id, frequency, ownership
+          // Reset task for next occurrence â€” keeps id, frequency, ownership
           return {
             ...t,
             status: 'queued' as const,
@@ -209,7 +209,7 @@ export default function MeritKPIApp() {
     }));
   };
 
-  // ── Achievement Actions (Exec Dashboard) ──
+  // â”€â”€ Achievement Actions (Exec Dashboard) â”€â”€
   const handleAddAchievement = useCallback((icon: string, title: string, desc: string, trigger: string, taskReq?: string, triggerVal?: number) => {
     const newAch: Achievement = { id: 'ach-' + Date.now(), icon, title, desc, trigger, taskRequired: taskReq, triggerValue: triggerVal };
     setAchievements(prev => [...prev, newAch]);
@@ -217,7 +217,7 @@ export default function MeritKPIApp() {
     // Retroactive unlock check
     if (checkRetroactiveUnlock(newAch, tasks, unlockedIds)) {
       setUnlockedIds(prev => [...prev, newAch.id]);
-      setTimeout(() => alert(`⚡ RETROACTIVE UNLOCK: Staff already qualified → ${title}`), 300);
+      setTimeout(() => alert(`âš¡ RETROACTIVE UNLOCK: Staff already qualified â†’ ${title}`), 300);
     }
 
     setAddAchOpen(false);
@@ -314,7 +314,7 @@ export default function MeritKPIApp() {
 
 
 
-  // ── Timezone Helper (GMT+8 Kuala Lumpur) ──
+  // â”€â”€ Timezone Helper (GMT+8 Kuala Lumpur) â”€â”€
   const getKLTime = () => {
     const now = new Date();
     // Use Intl to get formatted KL time
@@ -339,7 +339,7 @@ export default function MeritKPIApp() {
     return `${m}:${s}`;
   };
 
-  // ── Auth Handling ──
+  // â”€â”€ Auth Handling â”€â”€
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -365,7 +365,7 @@ export default function MeritKPIApp() {
   const currentProfile = authProfile || profile; // Fallback to seed if testing
   const currentUserId = authProfile?.id || authProfile?.access_id || 'local';
 
-  // ── Data Isolation: Only show tasks owned by or shared with current user ──
+  // â”€â”€ Data Isolation: Only show tasks owned by or shared with current user â”€â”€
   const visibleTasks = tasks.filter(task => {
     // No owner stamp = legacy/auto-assigned task, always visible to creator
     if (!task.ownerId) return true;
@@ -376,12 +376,12 @@ export default function MeritKPIApp() {
     return false;
   });
 
-  // ── Staff list for collaborator dropdown (exclude self) ──
+  // â”€â”€ Staff list for collaborator dropdown (exclude self) â”€â”€
   const collaboratorStaffList = team
     .filter(t => t.id !== currentUserId)
     .map(t => ({ id: t.id, name: t.name }));
 
-  // ── Derived State (depends on visibleTasks ── must be after) ──
+  // â”€â”€ Derived State (depends on visibleTasks â”€â”€ must be after) â”€â”€
   const completedPoints = visibleTasks.filter(t => t.status === 'completed').reduce((s, t) => s + t.points, 0);
   const lifetimePoints = completedPoints; // starting at 0 for fresh app
 
@@ -404,7 +404,7 @@ export default function MeritKPIApp() {
              </div>
              <div>
                 <label className="text-[10px] font-black uppercase tracking-widest block mb-2 text-on-surface-variant ml-1">Passcode</label>
-                <input type="password" name="passcode" required className="w-full bg-surface-container rounded-2xl py-4 px-5 outline-none border border-outline-variant/5 text-on-surface font-bold focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all" placeholder="••••••" />
+                <input type="password" name="passcode" required className="w-full bg-surface-container rounded-2xl py-4 px-5 outline-none border border-outline-variant/5 text-on-surface font-bold focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢" />
              </div>
              <button type="submit" className="w-full bg-primary text-white py-4 rounded-2xl font-bold uppercase tracking-widest text-[11px] hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 mt-4 mission-gradient">
                Authenticate
@@ -429,9 +429,9 @@ export default function MeritKPIApp() {
         isManager={currentProfile.is_manager}
       />
 
-      {/* ═══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           VIEW: STAFF DASHBOARD
-      ═══════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {activeView === 'staff' && (
         <main className="pt-28 px-6 max-w-6xl mx-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
@@ -472,7 +472,7 @@ export default function MeritKPIApp() {
             </div>
           </section>
           
-          {/* Achievement Quick View — Carousel */}
+          {/* Achievement Quick View â€” Carousel */}
           <section className="mb-8 overflow-hidden">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 px-1">My Milestones</h3>
             <div className="flex overflow-x-auto gap-2 pb-4 no-scrollbar -mx-1 px-1 snap-x">
@@ -499,7 +499,7 @@ export default function MeritKPIApp() {
             </div>
           </section>
 
-          {/* ── 2-Column Layout: Task Timeline + Mission Brief Sidebar ── */}
+          {/* â”€â”€ 2-Column Layout: Task Timeline + Mission Brief Sidebar â”€â”€ */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10 items-start">
 
             {/* LEFT: Task Timeline */}
@@ -523,7 +523,7 @@ export default function MeritKPIApp() {
               <div className="mb-4 px-2">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">
                   <span className="material-symbols-outlined text-[14px] text-primary/50">lock</span>
-                  Tasks visible only to you · Add collaborators to share
+                  Tasks visible only to you Â· Add collaborators to share
                 </div>
               </div>
 
@@ -536,7 +536,7 @@ export default function MeritKPIApp() {
                   <div className="text-center py-12 rounded-3xl border-2 border-dashed border-outline-variant text-on-surface-variant relative z-10 bg-surface-container-lowest">
                     <span className="material-symbols-outlined text-[48px] mb-3 block opacity-30 text-primary">event_available</span>
                     <p className="font-bold text-lg">Schedule Cleared</p>
-                    <p className="text-sm mt-1 opacity-70">Use your Role Mission Brief →  to plan today's tasks.</p>
+                    <p className="text-sm mt-1 opacity-70">Use your Role Mission Brief â†’  to plan today's tasks.</p>
                   </div>
                 )}
                 
@@ -583,7 +583,7 @@ export default function MeritKPIApp() {
                               isDone ? 'bg-surface-container text-on-surface-variant' : 
                               'bg-surface-container-high text-on-surface-variant'
                             }`}>
-                              {isActive ? '● IN PROGRESS' : isDone ? '✓ COMPLETED' : '◌ SCHEDULED'}
+                              {isActive ? 'â— IN PROGRESS' : isDone ? 'âœ“ COMPLETED' : 'â—Œ SCHEDULED'}
                             </span>
                             <span className="text-[9px] font-black uppercase tracking-wider bg-surface-container text-on-surface-variant px-2.5 py-1 rounded-lg">
                               {task.tierName}
@@ -595,7 +595,7 @@ export default function MeritKPIApp() {
                                 {task.frequency.type === 'daily'
                                   ? 'Daily'
                                   : task.frequency.days && task.frequency.days.length > 0
-                                  ? task.frequency.days.sort().map(d => ['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join('·')
+                                  ? task.frequency.days.sort().map(d => ['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join('Â·')
                                   : 'Weekly'}
                               </span>
                             )}
@@ -789,9 +789,9 @@ export default function MeritKPIApp() {
       )}
 
 
-      {/* ═══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           VIEW: EXEC DASHBOARD
-      ═══════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {activeView === 'manager' && (
         <div className="h-full">
           {/* Sidebar (Desktop) */}
@@ -857,9 +857,9 @@ export default function MeritKPIApp() {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           VIEW: TRIAGE (Appeals)
-      ═══════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {activeView === 'triage' && (
         <main className="pt-28 px-6 max-w-3xl mx-auto pb-32 animate-in fade-in duration-300">
           <div className="mb-10">
@@ -884,14 +884,14 @@ export default function MeritKPIApp() {
         </main>
       )}
 
-      {/* ═══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           VIEW: SKILLS ACCELERATOR
-      ═══════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {activeView === 'skills' && (
         <SkillsView modules={modules} setAddModuleOpen={setAddModuleOpen} isManager={currentProfile.is_manager} onRemoveModule={handleDeleteModule} />
       )}
 
-      {/* ── Modals ── */}
+      {/* â”€â”€ Modals â”€â”€ */}
       <ProfileModal 
         isOpen={profileOpen} 
         onClose={() => setProfileOpen(false)} 
@@ -913,9 +913,9 @@ export default function MeritKPIApp() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Appeal Card (Triage)
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function AppealCard({ appeal, onResolve }: { appeal: AppealItem; onResolve: (id: string, pts: number, msg: string) => void }) {
   const [pts, setPts] = useState(appeal.originalPoints);
   const [msg, setMsg] = useState('');
@@ -930,7 +930,7 @@ function AppealCard({ appeal, onResolve }: { appeal: AppealItem; onResolve: (id:
           <div>
             <h4 className="font-bold text-on-surface text-lg">{appeal.staffName}</h4>
             <p className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant">
-              {appeal.department} • {appeal.taskTitle}
+              {appeal.department} â€¢ {appeal.taskTitle}
             </p>
           </div>
         </div>
@@ -1008,9 +1008,9 @@ function AppealCard({ appeal, onResolve }: { appeal: AppealItem; onResolve: (id:
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Skills View
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function SkillsView({ modules, setAddModuleOpen, isManager, onRemoveModule }: { modules: SkillModule[], setAddModuleOpen: (v: boolean) => void, isManager: boolean, onRemoveModule: (id: string) => void }) {
   const [selectedModule, setSelectedModule] = useState<SkillModule | null>(null);
 
@@ -1196,9 +1196,9 @@ function SkillsView({ modules, setAddModuleOpen, isManager, onRemoveModule }: { 
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Stepper Step Card (Skills Detail)
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function StepCard({ step, title, status, description, children }: { step: number, title: string, status: 'completed' | 'in-progress' | 'locked', description: string, children?: React.ReactNode }) {
   const isLocked = status === 'locked';
   const isDone = status === 'completed';
@@ -1216,7 +1216,7 @@ function StepCard({ step, title, status, description, children }: { step: number
           isPending ? 'bg-primary/10 text-primary animate-pulse' : 
           'bg-surface-container text-on-surface-variant'
         }`}>
-          {isDone ? '✓' : step}
+          {isDone ? 'âœ“' : step}
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
@@ -1237,12 +1237,12 @@ function StepCard({ step, title, status, description, children }: { step: number
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Manager Views
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function ManagerDashboardView({ team, achievements, activityLog, setAddAchOpen, onDeleteStaff }: { team: TeamMember[], achievements: Achievement[], activityLog: ActivityLog[], setAddAchOpen: (v: boolean) => void, onDeleteStaff: (id: string, name: string) => void }) {
-  // ── Health Score: 40% active ratio, 40% point velocity, 20% achievement unlocks ──
+  // â”€â”€ Health Score: 40% active ratio, 40% point velocity, 20% achievement unlocks â”€â”€
   const totalStaff = team.length;
   const activeStaff = team.filter(m => m.monthPoints > 0).length;
   const avgPoints = totalStaff > 0 ? team.reduce((s, m) => s + m.monthPoints, 0) / totalStaff : 0;
@@ -1255,7 +1255,7 @@ function ManagerDashboardView({ team, achievements, activityLog, setAddAchOpen, 
   const healthBarColor = healthScore >= 80 ? 'bg-green-500' : healthScore >= 60 ? 'bg-amber-400' : 'bg-red-400';
   const healthBadgeColor = healthScore >= 80 ? 'text-green-600 bg-green-50' : healthScore >= 60 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
 
-  // ── AI Assistant ──
+  // â”€â”€ AI Assistant â”€â”€
   const idleMembers = team.filter(m => m.monthPoints === 0);
   const lowPointMembers = team.filter(m => m.monthPoints > 0 && m.monthPoints < 100);
   const aiIsAlert = idleMembers.length > 0 || lowPointMembers.length > 0;
@@ -1271,7 +1271,7 @@ function ManagerDashboardView({ team, achievements, activityLog, setAddAchOpen, 
     aiInsight = `${lowPointMembers.map(m => m.name).join(', ')} ${lowPointMembers.length > 1 ? 'are' : 'is'} underperforming. Consider a 1-on-1 review or reassigning high-value tasks to boost engagement.`;
   }
 
-  // ── Helpers ──
+  // â”€â”€ Helpers â”€â”€
   const timeAgo = (ts: string) => {
     const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
     if (diff < 60) return `${diff}s ago`;
@@ -1314,7 +1314,7 @@ function ManagerDashboardView({ team, achievements, activityLog, setAddAchOpen, 
           <div className="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden">
             <div className={`h-2 rounded-full transition-all duration-700 ${healthBarColor}`} style={{ width: `${healthScore}%` }} />
           </div>
-          <p className="text-[10px] text-on-surface-variant mt-2 opacity-70">Active: {activeStaff}/{totalStaff} · Avg Pts: {Math.round(avgPoints)}</p>
+          <p className="text-[10px] text-on-surface-variant mt-2 opacity-70">Active: {activeStaff}/{totalStaff} Â· Avg Pts: {Math.round(avgPoints)}</p>
         </div>
         <div className="bg-surface-container-lowest p-8 rounded-2xl shadow-sm border border-outline-variant/5 hover:border-primary/20 transition-all">
           <div className="flex justify-between items-start mb-4">
@@ -1646,77 +1646,88 @@ function ManagerLedgerView({ config, setConfig }: { config: MeritConfig, setConf
 }
 
 function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSaveRoleSync }: { config: OrganizationConfig, setConfig: (c: OrganizationConfig) => void, onDeleteStaff: (id: string, name: string) => void, team: any[], setTeam: React.Dispatch<React.SetStateAction<any[]>>, onSaveRoleSync: (config: OrganizationConfig) => Promise<void> }) {
+  const allRoles = Object.keys(config.autoAssignments);
+
+  // â”€â”€ Create Staff â”€â”€
   const [newStaffName, setNewStaffName] = useState('');
-  const [newStaffRole, setNewStaffRole] = useState(Object.keys(config.autoAssignments)[0] || 'Staff');
+  const [newStaffRoles, setNewStaffRoles] = useState<string[]>([]); // multi-role
   const [newAccessCode, setNewAccessCode] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const toggleNewRole = (role: string) =>
+    setNewStaffRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
 
   const handleCreateStaff = async () => {
-    if (!newStaffName || !newAccessCode) return alert('Name and Access Code required.');
-    
-    // Create new custom profile
+    if (!newStaffName.trim() || !newAccessCode.trim()) return alert('Name and Access Code required.');
+    setCreating(true);
+    const roleStr = newStaffRoles.join(', ') || 'Staff';
     const { data: profile, error } = await supabase.from('profiles').insert([{
-      full_name: newStaffName,
-      access_id: newStaffName.toLowerCase().replace(/\s+/g, ''),
-      passcode: newAccessCode,
-      role: newStaffRole,
+      full_name: newStaffName.trim(),
+      access_id: newStaffName.trim().toLowerCase().replace(/\s+/g, ''),
+      passcode: newAccessCode.trim(),
+      role: roleStr,
       photo_url: `https://i.pravatar.cc/150?u=${Date.now()}`
     }]).select().single();
-
-    if (error) {
-      alert('Error creating staff: ' + error.message);
-    } else {
-      alert(`Staff ${newStaffName} created with Access ID: ${profile.access_id}`);
-      
-      // Update global team state so it appears everywhere immediately
-      setTeam(prev => [...prev, {
-        id: profile.id,
-        name: profile.full_name || 'Staff Member',
-        imgUrl: profile.photo_url,
-        status: 'online',
-        currentTask: 'Awaiting Task',
-        department: profile.department || 'General',
-        monthPoints: 0,
-        rank: prev.length + 1,
-        elapsed: ''
-      }]);
-
-      setNewStaffName('');
-      setNewAccessCode('');
-    }
+    setCreating(false);
+    if (error) { alert('Error creating staff: ' + error.message); return; }
+    alert(`Staff "${profile.full_name}" created. Access ID: ${profile.access_id}`);
+    setTeam(prev => [...prev, {
+      id: profile.id, name: profile.full_name, imgUrl: profile.photo_url,
+      status: 'online', currentTask: 'Awaiting Task', department: profile.department || 'General',
+      monthPoints: 0, rank: prev.length + 1, elapsed: '', role: roleStr
+    }]);
+    setNewStaffName(''); setNewAccessCode(''); setNewStaffRoles([]);
   };
 
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // â”€â”€ Edit Staff (inline expand) â”€â”€
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [editPasscode, setEditPasscode] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // ── Inline role/task creation (no window.prompt()) ──
+  const openEdit = (staff: any) => {
+    setEditingId(staff.id);
+    setEditName(staff.name || '');
+    setEditRoles(staff.role ? staff.role.split(',').map((r: string) => r.trim()).filter(Boolean) : []);
+    setEditPasscode('');
+  };
+
+  const toggleEditRole = (role: string) =>
+    setEditRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true);
+    const roleStr = editRoles.join(', ') || 'Staff';
+    const updates: any = { full_name: editName.trim(), role: roleStr };
+    if (editPasscode.trim()) updates.passcode = editPasscode.trim();
+    const { error } = await supabase.from('profiles').update(updates).eq('id', editingId);
+    setSaving(false);
+    if (error) { alert('Failed to update: ' + error.message); return; }
+    setTeam(prev => prev.map(s => s.id === editingId ? { ...s, name: editName.trim(), role: roleStr } : s));
+    setEditingId(null);
+  };
+
+  // â”€â”€ Role Config â”€â”€
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [newRoleName, setNewRoleName] = useState('');
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
 
   const handleAddDefaultTask = (role: string) => {
     const taskName = taskInputs[role]?.trim();
     if (!taskName) return;
-    setConfig({
-      ...config,
-      autoAssignments: {
-        ...config.autoAssignments,
-        [role]: { ...config.autoAssignments[role], tasks: [...config.autoAssignments[role].tasks, taskName] },
-      },
-    });
+    setConfig({ ...config, autoAssignments: { ...config.autoAssignments, [role]: { ...config.autoAssignments[role], tasks: [...config.autoAssignments[role].tasks, taskName] } } });
     setTaskInputs(prev => ({ ...prev, [role]: '' }));
   };
 
   const handleRemoveTask = (role: string, idx: number) => {
-    setConfig({
-      ...config,
-      autoAssignments: {
-        ...config.autoAssignments,
-        [role]: { ...config.autoAssignments[role], tasks: config.autoAssignments[role].tasks.filter((_, i) => i !== idx) },
-      },
-    });
+    setConfig({ ...config, autoAssignments: { ...config.autoAssignments, [role]: { ...config.autoAssignments[role], tasks: config.autoAssignments[role].tasks.filter((_, i) => i !== idx) } } });
   };
 
   const handleDeleteRole = (role: string) => {
     if (!confirm(`Delete the "${role}" role configuration?`)) return;
-    const { [role]: _removed, ...rest } = config.autoAssignments;
+    const { [role]: _r, ...rest } = config.autoAssignments;
     setConfig({ ...config, autoAssignments: rest });
   };
 
@@ -1737,53 +1748,234 @@ function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSav
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* LEFT: Staff Access */}
+
+        {/* â•â• LEFT: Staff Access â•â• */}
         <div className="space-y-6">
           <div className="bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant/10 shadow-sm">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">badge</span> Issued Access
             </h3>
+
+            {/* Create Staff Form */}
             <div className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant/5 shadow-inner mb-8">
-              <p className="text-sm font-bold text-on-surface mb-4">Create Staff Gateway</p>
+              <p className="text-sm font-bold text-on-surface mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-primary">person_add</span>
+                Create Staff Gateway
+              </p>
               <div className="space-y-3">
-                <input value={newStaffName} onChange={e => setNewStaffName(e.target.value)} placeholder="Full Name (e.g. John Doe)" className="w-full bg-white rounded-xl py-3 px-4 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all" />
-                <select value={newStaffRole} onChange={e => setNewStaffRole(e.target.value)} className="w-full bg-white rounded-xl py-3 px-4 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all">
-                  {Object.keys(config.autoAssignments).map(role => <option key={role} value={role}>{role}</option>)}
-                  {Object.keys(config.autoAssignments).length === 0 && <option value="Staff">Staff</option>}
-                </select>
+                <input
+                  value={newStaffName}
+                  onChange={e => setNewStaffName(e.target.value)}
+                  placeholder="Full Name (e.g. John Doe)"
+                  className="w-full bg-white rounded-xl py-3 px-4 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all"
+                />
+
+                {/* Multi-role checkboxes */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Assign Roles (select one or more)</p>
+                  {allRoles.length === 0 ? (
+                    <p className="text-xs text-on-surface-variant italic">No roles configured yet. Add roles on the right first.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {allRoles.map(role => {
+                        const checked = newStaffRoles.includes(role);
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => toggleNewRole(role)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
+                              checked
+                                ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                : 'bg-white text-on-surface-variant border-outline-variant/20 hover:border-primary/40 hover:text-primary'
+                            }`}
+                          >
+                            {checked && <span className="mr-1">âœ“</span>}{role}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {newStaffRoles.length > 0 && (
+                    <p className="text-[10px] text-primary font-bold mt-2 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                      Assigned: {newStaffRoles.join(' Â· ')}
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
-                  <input value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="Set Passcode..." className="flex-1 bg-white rounded-xl py-3 px-4 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all" />
-                  <button onClick={() => setNewAccessCode(Math.floor(100000 + Math.random() * 900000).toString())} className="px-4 py-3 bg-surface-container rounded-xl text-primary hover:bg-primary/10 transition-colors">
+                  <input
+                    value={newAccessCode}
+                    onChange={e => setNewAccessCode(e.target.value)}
+                    placeholder="Set Passcode..."
+                    className="flex-1 bg-white rounded-xl py-3 px-4 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all"
+                  />
+                  <button
+                    onClick={() => setNewAccessCode(Math.floor(100000 + Math.random() * 900000).toString())}
+                    className="px-4 py-3 bg-surface-container rounded-xl text-primary hover:bg-primary/10 transition-colors"
+                    title="Generate random code"
+                  >
                     <span className="material-symbols-outlined text-[20px]">casino</span>
                   </button>
                 </div>
-                <button onClick={handleCreateStaff} className="w-full py-3 mt-2 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-md shadow-primary/20">
-                  Generate Staff Profile
+
+                <button
+                  onClick={handleCreateStaff}
+                  disabled={creating || !newStaffName.trim() || !newAccessCode.trim()}
+                  className="w-full py-3 mt-1 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {creating
+                    ? <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span> Creatingâ€¦</>
+                    : <><span className="material-symbols-outlined text-[16px]">person_add</span> Generate Staff Profile</>
+                  }
                 </button>
               </div>
             </div>
-            <h3 className="text-xl font-bold mb-6">Staff Roster</h3>
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-              {team.length === 0 && <p className="text-sm text-on-surface-variant">No staff found.</p>}
-              {team.map((staff) => (
-                <div key={staff.id} className="flex justify-between items-center p-4 rounded-xl border border-outline-variant/5 bg-surface-container-low shadow-sm">
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">{staff.name || 'Staff Member'}</p>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">ID: {staff.access_id || staff.id?.slice(0, 8)}</p>
+
+            {/* Staff Roster */}
+            <h3 className="text-xl font-bold mb-4 flex items-center justify-between">
+              Staff Roster
+              <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-2 py-1 rounded-lg">{team.length} members</span>
+            </h3>
+            <div className="space-y-3 pr-1">
+              {team.length === 0 && <p className="text-sm text-on-surface-variant italic text-center py-4">No staff found.</p>}
+              {team.map(staff => {
+                const isEditing = editingId === staff.id;
+                return (
+                  <div
+                    key={staff.id}
+                    className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                      isEditing ? 'border-primary/30 bg-primary/5 shadow-md shadow-primary/10' : 'border-outline-variant/5 bg-surface-container-low'
+                    }`}
+                  >
+                    {/* Collapsed view */}
+                    <div className="flex justify-between items-center p-4">
+                      <div className="flex items-center gap-3">
+                        <img src={staff.imgUrl || `https://i.pravatar.cc/40?u=${staff.id}`} className="w-9 h-9 rounded-xl object-cover" alt={staff.name} />
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">{staff.name || 'Staff Member'}</p>
+                          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-0.5">
+                            ID: {staff.access_id || staff.id?.slice(0, 8)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Role badges â€” supports multi-role (comma-separated) */}
+                        <div className="flex flex-wrap gap-1 justify-end max-w-[150px]">
+                          {(staff.role || 'Staff').split(',').map((r: string, i: number) => (
+                            <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                              {r.trim()}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => isEditing ? setEditingId(null) : openEdit(staff)}
+                          className={`p-1.5 rounded-lg transition-all flex items-center ${isEditing ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-primary'}`}
+                          title="Edit staff"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">{isEditing ? 'expand_less' : 'edit'}</span>
+                        </button>
+                        <button
+                          onClick={() => onDeleteStaff(staff.id, staff.name || 'Staff Member')}
+                          className="text-error hover:bg-error/10 p-1.5 rounded-lg transition-all flex items-center"
+                          title="Delete staff"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">person_remove</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded edit panel */}
+                    {isEditing && (
+                      <div className="px-4 pb-5 pt-1 border-t border-primary/10 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">edit</span> Edit Staff Details
+                        </p>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Full Name</label>
+                          <input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="w-full bg-white rounded-xl py-2.5 px-3 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1.5">Assigned Roles</label>
+                          {allRoles.length === 0 ? (
+                            <p className="text-xs text-on-surface-variant italic">No roles configured yet.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {allRoles.map(role => {
+                                const checked = editRoles.includes(role);
+                                return (
+                                  <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => toggleEditRole(role)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
+                                      checked
+                                        ? 'bg-primary text-white border-primary shadow-sm'
+                                        : 'bg-white text-on-surface-variant border-outline-variant/20 hover:border-primary/40'
+                                    }`}
+                                  >
+                                    {checked && 'âœ“ '}{role}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">New Passcode <span className="normal-case font-normal">(leave blank to keep current)</span></label>
+                          <div className="flex gap-2">
+                            <input
+                              value={editPasscode}
+                              onChange={e => setEditPasscode(e.target.value)}
+                              placeholder="Enter new passcode..."
+                              className="flex-1 bg-white rounded-xl py-2.5 px-3 outline-none border border-outline-variant/10 text-sm font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all"
+                            />
+                            <button
+                              onClick={() => setEditPasscode(Math.floor(100000 + Math.random() * 900000).toString())}
+                              className="px-3 py-2 bg-surface-container rounded-xl text-primary hover:bg-primary/10 transition-colors"
+                              title="Generate random code"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">casino</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={handleSaveEdit}
+                            disabled={saving || !editName.trim()}
+                            className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest hover:scale-[1.02] transition-transform shadow-md shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-1"
+                          >
+                            {saving
+                              ? <><span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span> Savingâ€¦</>
+                              : <><span className="material-symbols-outlined text-[14px]">save</span> Save Changes</>
+                            }
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-4 py-2.5 rounded-xl border border-outline-variant/20 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:bg-surface-container transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold uppercase tracking-widest">{staff.role || staff.department || 'Staff'}</span>
-                    <button onClick={() => onDeleteStaff(staff.id, staff.name || 'Staff Member')} className="text-error hover:bg-error/10 p-1.5 rounded transition-all flex items-center" title="Delete Staff">
-                      <span className="material-symbols-outlined text-[16px]">person_remove</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* RIGHT: Role Configuration */}
+        {/* â•â• RIGHT: Role Configuration â•â• */}
         <div className="space-y-6">
           <div className="bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant/10 shadow-sm">
             <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
@@ -1794,36 +1986,28 @@ function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSav
             </p>
 
             <div className="space-y-4">
-              {/* Existing roles */}
               {Object.entries(config.autoAssignments).map(([role, data]) => (
                 <div key={role} className="border border-outline-variant/10 rounded-2xl p-5 bg-surface-container-low">
                   <div className="flex justify-between items-center mb-3 pb-3 border-b border-outline-variant/10">
                     <span className="font-extrabold text-on-surface flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>
-                      {role}
+                      <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>{role}
                     </span>
                     <button onClick={() => handleDeleteRole(role)} className="text-[10px] text-error font-bold uppercase tracking-widest hover:bg-error/10 px-2 py-1 rounded transition-colors">
                       Delete
                     </button>
                   </div>
                   <div className="space-y-1.5 mb-3">
-                    {data.tasks.length === 0 && (
-                      <p className="text-xs text-on-surface-variant italic py-1 px-1">No objectives yet.</p>
-                    )}
+                    {data.tasks.length === 0 && <p className="text-xs text-on-surface-variant italic py-1 px-1">No objectives yet.</p>}
                     {data.tasks.map((task, idx) => (
                       <div key={idx} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-outline-variant/5 group/task">
                         <span className="material-symbols-outlined text-[14px] text-primary">flag</span>
                         <span className="text-xs font-semibold flex-1">{task}</span>
-                        <button
-                          onClick={() => handleRemoveTask(role, idx)}
-                          className="opacity-0 group-hover/task:opacity-100 text-error hover:bg-error/10 p-0.5 rounded transition-all"
-                        >
+                        <button onClick={() => handleRemoveTask(role, idx)} className="opacity-0 group-hover/task:opacity-100 text-error hover:bg-error/10 p-0.5 rounded transition-all">
                           <span className="material-symbols-outlined text-[13px]">close</span>
                         </button>
                       </div>
                     ))}
                   </div>
-                  {/* Inline task input — no prompt() */}
                   <div className="flex gap-2">
                     <input
                       value={taskInputs[role] || ''}
@@ -1832,18 +2016,14 @@ function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSav
                       placeholder="Type objective + Enter"
                       className="flex-1 bg-white rounded-xl py-2 px-3 outline-none border border-outline-variant/10 text-xs font-medium focus:border-primary/30 focus:ring-2 focus:ring-primary/5 transition-all"
                     />
-                    <button
-                      onClick={() => handleAddDefaultTask(role)}
-                      disabled={!taskInputs[role]?.trim()}
-                      className="px-3 py-2 bg-primary text-white rounded-xl font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center"
-                    >
+                    <button onClick={() => handleAddDefaultTask(role)} disabled={!taskInputs[role]?.trim()} className="px-3 py-2 bg-primary text-white rounded-xl font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center">
                       <span className="material-symbols-outlined text-[16px]">add</span>
                     </button>
                   </div>
                 </div>
               ))}
 
-              {/* Inline create new role — no prompt() */}
+              {/* New role input */}
               <div className="border-2 border-dashed border-primary/20 rounded-2xl p-4 bg-primary/5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[13px]">add_circle</span> New Business Role
@@ -1856,41 +2036,38 @@ function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSav
                     placeholder="Role name (e.g. Senior Developer)"
                     className="flex-1 bg-white rounded-xl py-3 px-4 outline-none border border-primary/20 text-sm font-medium focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all"
                   />
-                  <button
-                    onClick={handleCreateRole}
-                    disabled={!newRoleName.trim()}
-                    className="px-4 py-3 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md shadow-primary/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">add</span>
-                    Add
+                  <button onClick={handleCreateRole} disabled={!newRoleName.trim()} className="px-4 py-3 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md shadow-primary/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">add</span> Add
                   </button>
                 </div>
               </div>
 
-              {/* Save button */}
+              {/* Save */}
               <div className="pt-2">
                 <button
                   onClick={async () => {
                     setSaveStatus('saving');
                     await onSaveRoleSync(config);
-                    // onSaveRoleSync shows alert on error; set saved regardless to give local feedback
                     setSaveStatus('saved');
                     setTimeout(() => setSaveStatus('idle'), 3000);
                   }}
                   disabled={saveStatus === 'saving'}
-                  className={`w-full py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-primary/20 mission-gradient hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                  className={`w-full py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 ${
                     saveStatus === 'saved' ? 'bg-green-600 text-white' :
                     saveStatus === 'saving' ? 'bg-primary/60 text-white cursor-not-allowed' :
-                    'bg-primary text-white'
+                    'bg-primary text-white mission-gradient'
                   }`}
                 >
                   {saveStatus === 'saving' && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
                   {saveStatus === 'saved' && <span className="material-symbols-outlined text-[18px]">check_circle</span>}
                   {saveStatus === 'idle' && <span className="material-symbols-outlined text-[18px]">cloud_upload</span>}
-                  {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved to Cloud ✓' : 'Save Role Synchronization'}
+                  {saveStatus === 'saving' ? 'Savingâ€¦' : saveStatus === 'saved' ? 'Saved to Cloud âœ“' : 'Save Role Synchronization'}
                 </button>
                 {saveStatus === 'saved' && (
-                  <p className="text-center text-[10px] font-bold text-green-600 uppercase tracking-widest mt-2">Configuration persisted to database</p>
+                  <p className="text-center text-[10px] font-bold text-green-600 uppercase tracking-widest mt-2 flex items-center justify-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">database</span>
+                    Configuration persisted to database
+                  </p>
                 )}
               </div>
             </div>
@@ -1900,4 +2077,5 @@ function ManagerOrgView({ config, setConfig, onDeleteStaff, team, setTeam, onSav
     </>
   );
 }
+
 
