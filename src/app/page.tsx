@@ -48,12 +48,12 @@ export default function MeritKPIApp() {
   
   // Real DB state (No more mock seeds except config fallback)
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>(SEED_ACHIEVEMENTS); // Hardcoded UI list for now unless configured in DB
+  const [achievements, setAchievements] = useState<Achievement[]>(SEED_ACHIEVEMENTS); 
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
-  const [profile, setProfile] = useState<StaffProfile>(SEED_PROFILE); // Fallback structure
-  const [team, setTeam] = useState<any[]>([]); // Dynamic profiles
+  const [profile, setProfile] = useState<StaffProfile>(SEED_PROFILE); 
+  const [team, setTeam] = useState<any[]>([]); 
   const [appeals, setAppeals] = useState<AppealItem[]>([]);
-  const [modules, setModules] = useState<SkillModule[]>(SEED_MODULES); // Changed to allow adding
+  const [modules, setModules] = useState<SkillModule[]>(SEED_MODULES); 
   const [meritConfig, setMeritConfig] = useState<MeritConfig>(SEED_MERIT_CONFIG);
   const [orgConfig, setOrgConfig] = useState<OrganizationConfig>(SEED_ORG_CONFIG);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
@@ -63,7 +63,7 @@ export default function MeritKPIApp() {
     if (isLoggedIn && authProfile) {
       const fetchData = async () => {
         try {
-          // 1. Fetch TEAM for managers (or just self for staff points display)
+          // 1. Fetch TEAM for managers
           const { data: profilesData } = await supabase.from('profiles').select('*');
           if (profilesData) setTeam(profilesData.map(t => ({
             id: t.id,
@@ -79,7 +79,6 @@ export default function MeritKPIApp() {
           })));
 
           if (authProfile.is_manager) {
-            // Load org_config from Supabase
             const { data: configData } = await supabase
               .from('org_config')
               .select('config')
@@ -90,14 +89,13 @@ export default function MeritKPIApp() {
             }
           }
 
-          // 2. Fetch TASKS for current user (or all if manager)
+          // 2. Fetch TASKS
           let query = supabase.from('tasks').select('*');
           if (!authProfile.is_manager) {
             const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
             if (isUUID(authProfile.id)) {
               query = query.or(`owner_id.eq.${authProfile.id},collaborator_ids.cs.{"${authProfile.id}"}`);
             } else {
-              // If manager logs in with access_id (no UUID), show tasks matching access_id or null
               query = query.or(`owner_id.is.null,owner_id.eq.${authProfile.access_id}`);
             }
           }
@@ -123,12 +121,10 @@ export default function MeritKPIApp() {
               isContinuous: t.is_continuous,
               workflow: t.workflow
             })));
-          } else if (taskError) {
-            console.error('[tasks] fetch error:', taskError);
           }
 
-          // 3. Fetch ACTIVITY LOG
-          const { data: actData, error: actError } = await supabase
+          // 3. Activity Log
+          const { data: actData } = await supabase
             .from('activity_log')
             .select('*')
             .order('timestamp', { ascending: false })
@@ -142,11 +138,9 @@ export default function MeritKPIApp() {
               timestamp: a.timestamp,
               staffName: a.staff_name || a.staffName
             })));
-          } else if (actError) {
-            console.error('[activity_log] fetch error:', actError);
           }
 
-          // 4. Fetch ACHIEVEMENTS
+          // 4. Achievements
           const { data: achData } = await supabase.from('achievements').select('*');
           if (achData) {
             setAchievements(achData.map(a => ({
@@ -160,7 +154,7 @@ export default function MeritKPIApp() {
             })));
           }
 
-          // 4.5 Fetch SKILL MODULES
+          // 4.5 Modules
           const { data: modData } = await supabase.from('skill_modules').select('*');
           if (modData) {
             setModules(modData.map(m => ({
@@ -169,12 +163,11 @@ export default function MeritKPIApp() {
               title: m.title,
               description: m.description,
               meritValue: m.merit_value,
-              participants: 0 // In a real app, this would be a join or aggregate
+              participants: 0
             })));
           }
 
-
-          // 5. Fetch CURRENT STAFF profile details (points, etc.)
+          // 5. Staff Profile
           if (!authProfile.is_manager) {
             const { data: pData } = await supabase.from('profiles').select('*').eq('id', authProfile.id).single();
             if (pData) {
@@ -190,11 +183,13 @@ export default function MeritKPIApp() {
               }
             }
           }
-
-        };
-        fetchData();
-      }
-    }, [isLoggedIn, authProfile]);
+        } catch (err) {
+          console.error('fetchData failed:', err);
+        }
+      };
+      fetchData();
+    }
+  }, [isLoggedIn, authProfile]);
 
 
   // NOTE: Auto-Assignment removed â€” role tasks are now shown as guidelines in the Mission Brief
