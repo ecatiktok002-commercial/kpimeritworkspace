@@ -456,7 +456,7 @@ export default function MeritKPIApp() {
       } else {
         channel = supabase.channel('staff-sync');
         // Listen to updates on the staff's own tasks (e.g. Force Pause by Manager)
-        channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `staff_id=eq.${authProfile.id}` }, () => { fetchData(); });
+        channel.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => { fetchData(); });
         channel.subscribe();
       }
 
