@@ -781,9 +781,11 @@ export default function ManagerDashboardView({
                             return (
                               <div key={t.id} className={`flex items-center justify-between p-3 rounded-xl ${isOvertime ? 'bg-error/10 border border-error/20' : 'bg-surface-container-low/50'}`}>
                                 <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-xs font-bold text-on-surface">{t.title}</p>
-                                    {isOvertime && <span className="text-[8px] bg-error text-white px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Time Overrun</span>}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="text-xs font-bold text-on-surface">
+                                        {t.title} <span className="opacity-60 text-[10px] font-semibold ml-1">{t.actualDurationMinutes !== undefined ? `(${Math.round(t.actualDurationMinutes)}min)` : t.elapsedSec ? `(${Math.round(t.elapsedSec / 60)}min)` : ''}</span>
+                                      </p>
+                                      {isOvertime && <span className="text-[8px] bg-error text-white px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Time Overrun</span>}
                                   </div>
                                   <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-widest mt-1 opacity-60">
                                     {dateStr} • {t.tierName} • Est: {Math.floor(t.totalSec / 60)}m / Used: {Math.floor(t.elapsedSec / 60)}m

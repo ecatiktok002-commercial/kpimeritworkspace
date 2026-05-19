@@ -1542,7 +1542,7 @@ export default function MeritKPIApp() {
                                 <div>
                                   <div className="flex justify-between items-start gap-3 mb-2.5">
                                     <h4 className="font-bold text-on-surface text-base tracking-tight group-hover/item:text-primary transition-colors">
-                                      {task.title}
+                                      {task.title} <span className="opacity-60 text-sm font-semibold ml-1">{task.actualDurationMinutes !== undefined ? `(${Math.round(task.actualDurationMinutes)}min)` : task.elapsedSec ? `(${Math.round(task.elapsedSec / 60)}min)` : ''}</span>
                                     </h4>
                                     <div className="bg-primary/10 text-primary rounded-xl px-2.5 py-1 text-center shrink-0 font-black text-xs border border-primary/10">
                                       +{task.points} <span className="text-[8px] uppercase tracking-widest font-bold opacity-70">PTS</span>
@@ -2657,7 +2657,7 @@ function CompletedTasksModal({ isOpen, onClose, tasks }: { isOpen: boolean, onCl
                     <div>
                       <div className="flex justify-between items-start gap-3 mb-2">
                         <p className="font-bold text-on-surface text-base tracking-tight group-hover/item:text-primary transition-colors">
-                          {task.title}
+                          {task.title} <span className="opacity-60 text-sm font-semibold ml-1">{task.actualDurationMinutes !== undefined ? `(${Math.round(task.actualDurationMinutes)}min)` : task.elapsedSec ? `(${Math.round(task.elapsedSec / 60)}min)` : ''}</span>
                         </p>
                         <div className="bg-primary hover:bg-primary/90 text-white rounded-xl px-3 py-1 text-center shadow-md shadow-primary/20 transition-all font-black text-sm shrink-0">
                           +{task.points}<br/><span className="text-[8px] uppercase tracking-widest font-bold opacity-80">PTS</span>
