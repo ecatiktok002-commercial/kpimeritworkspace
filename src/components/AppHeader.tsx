@@ -7,77 +7,140 @@ interface AppHeaderProps {
   onViewChange: (view: string) => void;
   onProfileClick: () => void;
   avatarUrl: string;
+  onSignOut: () => void;
+  isManager: boolean;
+  pendingRedemptions?: number;
+  pendingAppeals?: number;
+  hasNewActivity?: boolean;
 }
 
-const navItems = [
-  { key: 'staff', label: 'Staff App', mIcon: 'dashboard' },
-  { key: 'manager', label: 'Exec Dashboard', mIcon: 'insights' },
-  { key: 'triage', label: 'Triage', mIcon: 'rule' },
-  { key: 'skills', label: 'Skills', mIcon: 'psychology' },
-];
+export default function AppHeader({ activeView, onViewChange, onProfileClick, avatarUrl, onSignOut, isManager, pendingRedemptions = 0, pendingAppeals = 0, hasNewActivity = false }: AppHeaderProps) {
+  const navItems: { key: string, label: string, mIcon: string, showToStaff: boolean, badge?: boolean }[] = [
+    { key: 'economy', label: 'Bounty & Rewards', mIcon: 'local_play', showToStaff: true },
+    { key: 'skills', label: 'Skills', mIcon: 'psychology', showToStaff: true },
+    { key: 'staff', label: 'Staff Dashboard', mIcon: 'dashboard', showToStaff: true },
+  ];
 
-export default function AppHeader({ activeView, onViewChange, onProfileClick, avatarUrl }: AppHeaderProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
   return (
-    <>
-      {/* Desktop Header */}
-      <header className="w-full sticky top-0 z-[100] flex items-center justify-between px-6 py-4 border-b glass-header" style={{ borderColor: 'var(--outline-variant)', borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'rgba(188,201,198,0.1)' }}>
-        <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>grid_view</span>
-          <h1 className="text-xl font-bold tracking-widest uppercase font-[Plus_Jakarta_Sans]" style={{ color: 'var(--primary)' }}>MeritKPI</h1>
+    <header className="w-full fixed top-0 z-[100] glass-header">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button 
+            className="lg:hidden p-2 -ml-2 text-on-surface"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle Menu"
+          >
+            <span className="material-symbols-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
+          </button>
+          <div 
+            onClick={() => isManager && onViewChange('manager')}
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20 relative ${isManager ? 'cursor-pointer hover:scale-105 active:scale-95 transition-all' : ''}`}
+          >
+            <span className="material-symbols-outlined font-black text-[20px] sm:text-[24px]">grid_view</span>
+            {isManager && (pendingRedemptions + pendingAppeals > 0 || hasNewActivity) && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse shadow-sm shadow-red-500/50"></span>
+            )}
+          </div>
+          <div onClick={() => isManager && onViewChange('manager')} className={isManager ? 'cursor-pointer' : ''}>
+            <h1 className="text-base sm:text-lg font-black tracking-[0.2em] uppercase text-on-surface font-headline leading-tight">KPI</h1>
+            <p className="text-[8px] sm:text-[10px] font-bold tracking-[0.4em] uppercase text-primary -mt-1 opacity-80">MERIT</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-8 mr-4">
-            <nav className="flex gap-2 relative z-10">
-              {navItems.map(item => (
+        <div className="flex items-center gap-3 sm:gap-6">
+          <nav className="hidden lg:flex items-center gap-2">
+            {navItems
+              .filter(i => {
+                if (!isManager) return i.showToStaff;
+                return i.key === 'staff';
+              })
+              .map(item => (
                 <button
                   key={item.key}
                   onClick={() => onViewChange(item.key)}
-                  className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-                    activeView === item.key ? 'font-bold' : 'hover:bg-gray-100'
+                  className={`nav-pill relative ${
+                    activeView === item.key ? 'nav-pill-active' : 'nav-pill-inactive'
                   }`}
-                  style={{
-                    color: activeView === item.key ? 'var(--primary)' : 'var(--on-surface-variant)',
-                    backgroundColor: activeView === item.key ? 'rgba(0,104,95,0.1)' : undefined,
-                  }}
                 >
+                  {item.label}
+                  {item.badge ? (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-surface shadow-sm"></span>
+                  ) : null}
+                </button>
+              ))}
+          </nav>
+          
+          <div className="h-10 w-px bg-outline-variant/30 mx-2 hidden lg:block" />
+
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button 
+              onClick={onSignOut} 
+              className="hidden sm:block text-xs font-bold uppercase tracking-widest text-error hover:bg-error/10 px-3 py-2 rounded-xl transition-all"
+            >
+              Sign Out
+            </button>
+            <div 
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-surface-container cursor-pointer hover:border-primary transition-all shadow-sm shrink-0 flex items-center justify-center bg-surface-container"
+              onClick={onProfileClick}
+            >
+              {avatarUrl ? (
+                <img alt="User profile" className="object-cover w-full h-full" src={avatarUrl}/>
+              ) : (
+                <span className="material-symbols-outlined text-[24px] sm:text-[28px] text-on-surface-variant opacity-20">person</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden absolute top-16 left-0 w-full bg-surface-container-lowest border-b border-outline-variant shadow-2xl animate-in slide-in-from-top duration-300 z-[110]">
+          <nav className="flex flex-col p-4 gap-2">
+            {navItems
+              .filter(i => {
+                if (!isManager) return i.showToStaff;
+                return i.key === 'staff' || i.key === 'economy' || i.key === 'skills';
+              })
+              .map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => {
+                    onViewChange(item.key);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all relative ${
+                    activeView === item.key 
+                      ? 'bg-primary text-on-primary shadow-md' 
+                      : 'text-on-surface hover:bg-surface-container-high'
+                  }`}
+                >
+                  <div className="relative">
+                    <span className="material-symbols-outlined">{item.mIcon}</span>
+                    {item.badge ? (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-surface shadow-sm animate-pulse"></span>
+                    ) : null}
+                  </div>
                   {item.label}
                 </button>
               ))}
-            </nav>
-          </div>
-          <div
-            className="h-10 w-10 rounded-full overflow-hidden border-2 cursor-pointer hover:ring-2 transition-all shadow-sm"
-            style={{ borderColor: 'var(--primary-container)', outlineColor: 'var(--primary)' }}
-            onClick={onProfileClick}
-          >
-            <img src={avatarUrl} alt="User profile avatar" className="object-cover w-full h-full" />
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Bottom NavBar — only visible on small screens */}
-      <nav className="fixed bottom-0 left-0 w-full z-[150] flex md:hidden justify-around items-center px-4 pb-6 pt-3 bg-white/95 backdrop-blur-xl border-t shadow-[0_-10px_40px_rgba(0,0,0,0.08)] rounded-t-3xl" style={{ borderColor: 'rgba(0,131,120,0.1)' }}>
-        {navItems.map(item => (
-          <a
-            key={item.key}
-            href="#"
-            onClick={(e) => { e.preventDefault(); onViewChange(item.key); }}
-            className="flex flex-col items-center justify-center p-2 transition-all"
-            style={{
-              color: activeView === item.key ? 'var(--primary)' : '#94a3b8',
-              fontWeight: activeView === item.key ? 700 : 400,
-            }}
-          >
-            <span
-              className="material-symbols-outlined mb-1 text-[28px]"
-              style={activeView === item.key ? { fontVariationSettings: "'FILL' 1" } : undefined}
+            <div className="h-px bg-outline-variant/30 my-2" />
+            <button 
+              onClick={() => {
+                onSignOut();
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold text-error hover:bg-error/10 transition-all"
             >
-              {item.mIcon}
-            </span>
-          </a>
-        ))}
-      </nav>
-    </>
+              <span className="material-symbols-outlined">logout</span>
+              Sign Out
+            </button>
+          </nav>
+        </div>
+      )}
+    </header>
+
   );
 }
