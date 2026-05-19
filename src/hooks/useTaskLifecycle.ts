@@ -155,14 +155,25 @@ export function useTaskLifecycle(
       const klTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kuala_Lumpur"}));
       const hours = klTime.getHours();
       
+      const currentDayStr = `${klTime.getFullYear()}-${klTime.getMonth()}-${klTime.getDate()}`;
+      let didEndOfDayWipe = false;
+      
+      // End-of-Day Wipe: Trigger exactly once per day after 6:00 PM
+      if (hours >= 18) {
+        if (typeof window !== 'undefined' && localStorage.getItem('kpi_last_wipe_day') !== currentDayStr) {
+          didEndOfDayWipe = true;
+          localStorage.setItem('kpi_last_wipe_day', currentDayStr);
+        }
+      }
+
       const idleMinutes = (Date.now() - lastActivityAt.current) / 60000;
 
       tasksRef.current.forEach(t => {
         if (t.status === 'running') {
           let shouldPause = false;
 
-          // 1. End-of-Day Wipe: Auto-pause at 6:00 PM (18:00)
-          if (hours >= 18) {
+          // 1. End-of-Day Wipe
+          if (didEndOfDayWipe) {
             shouldPause = true;
           }
           
