@@ -125,7 +125,7 @@ export function calculateTaskPoints(
   note: string,
   actualMins: number,
   config: AiPointConfig,
-  definition?: { goldenRule?: number, goldenRuleMinutes?: number, tierMultiplier?: number, isCalibrated: boolean }
+  definition?: { goldenRule?: number, goldenRuleMinutes?: number, estimatedMins?: number, tierMultiplier?: number, isCalibrated: boolean }
 ): PointCalcResult {
   const combinedTxt = `${title.toLowerCase()} ${note.toLowerCase()}`;
   
