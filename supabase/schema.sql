@@ -20,7 +20,7 @@ DO $$ BEGIN
         CREATE TYPE employment_type AS ENUM ('Staff', 'Intern'); 
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_status') THEN
-        CREATE TYPE task_status AS ENUM ('queued', 'running', 'completed'); 
+        CREATE TYPE task_status AS ENUM ('queued', 'running', 'paused', 'completed'); 
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appeal_status') THEN
         CREATE TYPE appeal_status AS ENUM ('pending', 'resolved', 'rejected'); 
@@ -32,6 +32,8 @@ DO $$ BEGIN
         CREATE TYPE reward_status AS ENUM ('pending', 'fulfilled', 'rejected'); 
     END IF;
 END $$;
+
+ALTER TYPE task_status ADD VALUE IF NOT EXISTS 'paused';
 
 -- 3. CORE IDENTITY & CONFIG
 -- ════════════════════════════════════════════════════════════════════════════════

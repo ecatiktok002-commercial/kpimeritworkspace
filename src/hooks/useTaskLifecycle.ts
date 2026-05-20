@@ -121,9 +121,16 @@ export function useTaskLifecycle(
     if (!taskToPause) return;
     const currentElapsed = taskToPause.elapsedSec;
     
+    const isManagerAction = authProfile?.is_manager && authProfile?.id !== taskToPause.ownerId;
+    
     setTasks(prev => prev.map(t => {
       if (t.id === id) {
-        return { ...t, status: 'paused' as const, managerViewed: false };
+        return { 
+          ...t, 
+          status: 'paused' as const, 
+          managerViewed: false,
+          isFlagged: isManagerAction ? true : t.isFlagged
+        };
       }
       return t;
     }));
@@ -133,8 +140,15 @@ export function useTaskLifecycle(
       ...m, currentTask: 'Awaiting Task', status: 'online' as const
     } : m));
 
-    await supabase.from('tasks').update({ status: 'paused', elapsed_sec: currentElapsed, manager_viewed: false }).eq('id', id);
-  }, [setTeam]);
+    const payload: any = { 
+      status: 'paused', 
+      elapsed_sec: currentElapsed, 
+      manager_viewed: false 
+    };
+    if (isManagerAction) payload.is_flagged = true;
+
+    await supabase.from('tasks').update(payload).eq('id', id);
+  }, [setTeam, authProfile]);
 
   const tasksRef = useRef(tasks);
   const lastActivityAt = useRef<number>(Date.now());
