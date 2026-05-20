@@ -9,11 +9,13 @@ interface StaffExecutionReportProps {
 }
 
 export default function StaffExecutionReport({ team }: StaffExecutionReportProps) {
-  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('ALL');
   const [timeframeMode, setTimeframeMode] = useState<'weekly' | 'monthly'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 20;
 
   // Initialize current month on mount
   useEffect(() => {
@@ -24,7 +26,8 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
   }, []);
 
   useEffect(() => {
-    if (selectedStaffId && selectedMonth) {
+    if (selectedMonth) {
+      setCurrentPage(1);
       fetchTasks();
     } else {
       setTasks([]);
@@ -49,22 +52,24 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
       endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('tasks')
       .select('*')
-      .eq('staff_id', selectedStaffId)
       .eq('status', 'completed')
       .gte('completed_at', startDate.toISOString())
       .lte('completed_at', endDate.toISOString());
 
+    if (selectedStaffId !== 'ALL') {
+      query = query.eq('staff_id', selectedStaffId);
+    }
+
+    const { data, error } = await query;
+
     if (!error && data) {
-      // Sort from Low to High Impact
-      const impactOrder: Record<string, number> = { 'Low': 1, 'Medium': 2, 'High': 3 };
-      
       const sortedData = (data as Task[]).sort((a, b) => {
-        const orderA = impactOrder[a.impact || ''] || 4;
-        const orderB = impactOrder[b.impact || ''] || 4;
-        return orderA - orderB;
+        const dateA = new Date((a as any).completed_at || a.completedAt || 0).getTime();
+        const dateB = new Date((b as any).completed_at || b.completedAt || 0).getTime();
+        return dateB - dateA;
       });
       setTasks(sortedData);
     } else {
@@ -86,7 +91,7 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
       <div className="mb-10">
         <p className="text-xs font-bold uppercase tracking-[0.15em] mb-2 text-primary">Performance Analytics</p>
         <h2 className="text-4xl font-extrabold font-headline tracking-tight text-on-surface">Staff Execution Report</h2>
-        <p className="text-on-surface-variant mt-2 text-lg">View completed tasks sorted from low to high impact.</p>
+        <p className="text-on-surface-variant mt-2 text-lg">View completed tasks sorted by latest date.</p>
       </div>
 
       <div className="bg-surface-container rounded-3xl p-6 lg:p-8 shadow-lg border border-outline-variant/10 mb-8 flex flex-col md:flex-row gap-6 items-end">
@@ -99,7 +104,7 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
             value={selectedStaffId}
             onChange={(e) => setSelectedStaffId(e.target.value)}
           >
-            <option value="" disabled>-- Choose a staff member --</option>
+            <option value="ALL">All Staff</option>
             {team.map(staff => (
               <option key={staff.id} value={staff.id}>{staff.name}</option>
             ))}
@@ -141,12 +146,7 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
 
       {/* Data Table */}
       <div className="bg-surface-container rounded-3xl overflow-hidden border border-outline-variant/10 shadow-lg">
-        {!selectedStaffId ? (
-          <div className="p-16 text-center text-on-surface-variant/60 flex flex-col items-center">
-            <span className="material-symbols-outlined text-6xl mb-4 opacity-50">person_search</span>
-            <p className="font-bold uppercase tracking-widest text-sm">Select a staff member to view their report</p>
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div className="p-16 text-center text-primary flex flex-col items-center">
             <span className="material-symbols-outlined text-4xl mb-4 animate-spin">sync</span>
             <p className="font-bold uppercase tracking-widest text-sm animate-pulse">Loading execution data...</p>
@@ -170,7 +170,7 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
-                {tasks.map(task => (
+                {tasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map(task => (
                   <tr key={task.id} className="hover:bg-surface/50 transition-colors group">
                     <td className="p-5 text-on-surface-variant">
                       {new Date((task as any).completed_at || task.completedAt || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -197,7 +197,31 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
               </tbody>
             </table>
           </div>
-        )}
+          {tasks.length > ITEMS_PER_PAGE && (
+            <div className="p-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-high/50">
+              <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                Page {currentPage} of {Math.ceil(tasks.length / ITEMS_PER_PAGE)}
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 text-sm font-bold bg-surface border border-outline-variant/20 rounded-lg hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(tasks.length / ITEMS_PER_PAGE), p + 1))}
+                  disabled={currentPage === Math.ceil(tasks.length / ITEMS_PER_PAGE)}
+                  className="px-4 py-2 text-sm font-bold bg-surface border border-outline-variant/20 rounded-lg hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       </div>
     </div>
   );
