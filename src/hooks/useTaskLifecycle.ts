@@ -74,7 +74,9 @@ export function useTaskLifecycle(
       is_continuous: task.isContinuous,
       collaborator_ids: task.collaboratorIds,
       collaborators: task.collaborators,
-      completed_at: task.completedAt
+      completed_at: task.completedAt,
+      impact: task.impact,
+      complexity: task.complexity
     };
   }, [authProfile]);
 
@@ -406,7 +408,7 @@ export function useTaskLifecycle(
     supabase.from('tasks').upsert([mapTaskToDB(updatedTask)]).then();
   }, [tasks, authProfile, profile.name, meritConfig, mapTaskToDB]);
 
-  const handleAddTask = useCallback((title: string, note: string, mins: number, status: 'queued' | 'running' | 'paused', commencementDate: string, collaborators: string[] = [], workflow: { id: string; name: string; isCompleted: boolean }[] = [], collaboratorIds: string[] = [], frequency: TaskFrequency = { type: 'once' }, isContinuous: boolean = false) => {
+  const handleAddTask = useCallback((title: string, note: string, mins: number, status: 'queued' | 'running' | 'paused', commencementDate: string, collaborators: string[] = [], workflow: { id: string; name: string; isCompleted: boolean }[] = [], collaboratorIds: string[] = [], frequency: TaskFrequency = { type: 'once' }, isContinuous: boolean = false, assessedImpact?: ImpactLevel, assessedComplexity?: ComplexityLevel) => {
     registerActivity();
     const definition = taskDefinitions.find(d => d.title.toLowerCase() === title.toLowerCase());
     const activePointConfig = getActivePointConfig(meritConfig);
@@ -419,7 +421,9 @@ export function useTaskLifecycle(
         ...definition,
         estimatedMins: mins,
         isCalibrated: !!definition?.isCalibrated
-      }
+      },
+      assessedImpact,
+      assessedComplexity
     );
     const currentUserId = authProfile?.id;
     
@@ -441,7 +445,9 @@ export function useTaskLifecycle(
       workflow: workflow,
       goldenRuleMinutes: definition?.goldenRuleMinutes,
       isCalibrated: definition?.isCalibrated,
-      managerViewed: editingTask ? editingTask.managerViewed : false
+      managerViewed: editingTask ? editingTask.managerViewed : false,
+      impact: calc.impact,
+      complexity: calc.complexity
     };
 
     if (editingTask) {

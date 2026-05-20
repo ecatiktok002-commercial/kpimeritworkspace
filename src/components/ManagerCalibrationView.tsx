@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { SEED_MERIT_CONFIG } from '@/lib/mockDb';
-import type { TaskDefinition, MeritConfig, KeywordRule, ActivityLog } from '@/lib/types';
+import type { TaskDefinition, MeritConfig, KeywordRule, ActivityLog, ImpactLevel, ComplexityLevel } from '@/lib/types';
 
 interface ManagerCalibrationViewProps {
   taskDefinitions: TaskDefinition[];
@@ -38,6 +38,8 @@ export default function ManagerCalibrationView({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editMinutes, setEditMinutes] = useState<number>(0);
   const [editMultiplier, setEditMultiplier] = useState<number>(1.2);
+  const [editImpact, setEditImpact] = useState<ImpactLevel>('Low');
+  const [editComplexity, setEditComplexity] = useState<ComplexityLevel>('Low');
   const [staffInputs, setStaffInputs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [recentStats, setRecentStats] = useState<Record<string, { avg: number; count: number }>>({});
@@ -122,12 +124,14 @@ export default function ManagerCalibrationView({
       .from('task_definitions')
       .update({ 
         golden_rule_minutes: editMinutes,
-        tier_multiplier: editMultiplier
+        tier_multiplier: editMultiplier,
+        impact: editImpact,
+        complexity: editComplexity
       })
       .eq('id', id);
 
     if (!error) {
-      setTaskDefinitions(prev => prev.map(d => d.id === id ? { ...d, goldenRuleMinutes: editMinutes, tierMultiplier: editMultiplier } : d));
+      setTaskDefinitions(prev => prev.map(d => d.id === id ? { ...d, goldenRuleMinutes: editMinutes, tierMultiplier: editMultiplier, impact: editImpact, complexity: editComplexity } : d));
       setEditingId(null);
     } else {
       alert('Error saving configuration: ' + error.message);
@@ -517,6 +521,7 @@ export default function ManagerCalibrationView({
                 <thead>
                   <tr className="bg-surface-container-low border-b border-outline-variant/10">
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Definition</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-center">AI Matrix</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-center">Status</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant text-center">Golden Rule</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Observations</th>
@@ -540,6 +545,39 @@ export default function ManagerCalibrationView({
                           <p className="text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60">
                             {dynamicTiers.find(t => t.val === def.tierMultiplier)?.name || 'Custom'} ({def.tierMultiplier}x)
                           </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        {editingId === def.id ? (
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <select 
+                              className="text-[10px] bg-surface-container rounded px-1 py-0.5 font-black uppercase tracking-widest text-primary border-none outline-none cursor-pointer"
+                              value={editImpact}
+                              onChange={(e) => setEditImpact(e.target.value as ImpactLevel)}
+                            >
+                              <option value="Low">Low Impact</option>
+                              <option value="Medium">Medium Impact</option>
+                              <option value="High">High Impact</option>
+                            </select>
+                            <select 
+                              className="text-[10px] bg-surface-container rounded px-1 py-0.5 font-black uppercase tracking-widest text-primary border-none outline-none cursor-pointer"
+                              value={editComplexity}
+                              onChange={(e) => setEditComplexity(e.target.value as ComplexityLevel)}
+                            >
+                              <option value="Low">Low Cmplx</option>
+                              <option value="Medium">Medium Cmplx</option>
+                              <option value="High">High Cmplx</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-widest font-black opacity-80">
+                            <span className={def.impact === 'High' ? 'text-orange-500' : def.impact === 'Medium' ? 'text-blue-500' : 'text-gray-500'}>
+                              {def.impact || 'Low'} Impact
+                            </span>
+                            <span className={def.complexity === 'High' ? 'text-orange-500' : def.complexity === 'Medium' ? 'text-blue-500' : 'text-gray-500'}>
+                              {def.complexity || 'Low'} Cmplx
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-5 text-center">
@@ -576,7 +614,13 @@ export default function ManagerCalibrationView({
                         ) : (
                           <div 
                             className="cursor-pointer hover:text-primary transition-colors flex items-center justify-center gap-1"
-                            onClick={() => { setEditingId(def.id); setEditMinutes(def.goldenRuleMinutes || 0); setEditMultiplier(def.tierMultiplier); }}
+                            onClick={() => { 
+                              setEditingId(def.id); 
+                              setEditMinutes(def.goldenRuleMinutes || 0); 
+                              setEditMultiplier(def.tierMultiplier);
+                              setEditImpact(def.impact || 'Low');
+                              setEditComplexity(def.complexity || 'Low');
+                            }}
                           >
                             <span className="text-sm font-black">{def.goldenRuleMinutes || '--'}m</span>
                             <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100">edit</span>
@@ -595,7 +639,13 @@ export default function ManagerCalibrationView({
                       </td>
                       <td className="px-6 py-5 text-right">
                          <button 
-                          onClick={() => { setEditingId(def.id); setEditMinutes(def.goldenRuleMinutes || 0); setEditMultiplier(def.tierMultiplier); }}
+                          onClick={() => { 
+                            setEditingId(def.id); 
+                            setEditMinutes(def.goldenRuleMinutes || 0); 
+                            setEditMultiplier(def.tierMultiplier); 
+                            setEditImpact(def.impact || 'Low');
+                            setEditComplexity(def.complexity || 'Low');
+                          }}
                           className="text-on-surface-variant hover:text-primary transition-colors"
                          >
                            <span className="material-symbols-outlined text-[18px]">tune</span>

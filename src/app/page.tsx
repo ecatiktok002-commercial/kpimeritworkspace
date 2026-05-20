@@ -295,7 +295,9 @@ export default function MeritKPIApp() {
                 isCalibrated: t.is_calibrated,
                 actualDurationMinutes: t.actual_duration_minutes,
                 efficiencyScore: Number(t.efficiency_score || 1),
-                isFlagged: t.is_flagged
+                isFlagged: t.is_flagged,
+                impact: t.impact,
+                complexity: t.complexity
               };
             }));
             
@@ -425,7 +427,9 @@ export default function MeritKPIApp() {
               title: d.title,
               goldenRuleMinutes: d.golden_rule_minutes,
               tierMultiplier: Number(d.tier_multiplier),
-              isCalibrated: d.is_calibrated
+              isCalibrated: d.is_calibrated,
+              impact: d.impact,
+              complexity: d.complexity
             })));
           }
 

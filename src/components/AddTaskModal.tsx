@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import type { TaskFrequency, MeritConfig, TaskDefinition } from '@/lib/types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import type { TaskFrequency, MeritConfig, TaskDefinition, ImpactLevel, ComplexityLevel } from '@/lib/types';
 import { calculateTaskPoints } from '@/lib/taskEngine';
 import { getActivePointConfig } from '@/lib/utils';
+import { assessTaskViaEdge, type EdgeAssessmentResult } from '@/lib/assessTask';
 
 interface StaffOption {
   id: string;
@@ -25,7 +26,9 @@ interface AddTaskModalProps {
     workflow: { id: string; name: string; isCompleted: boolean }[],
     collaboratorIds: string[],
     frequency: TaskFrequency,
-    isContinuous: boolean
+    isContinuous: boolean,
+    assessedImpact?: ImpactLevel,
+    assessedComplexity?: ComplexityLevel
   ) => void;
   initialTask?: {
     id: string;
@@ -172,7 +175,20 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
     const finalTitle = isBatch ? `${title} [Batch x${batchCount}]` : title;
     const finalMins = isBatch ? (mins * batchCount) : (isContinuous ? 0 : mins);
 
-    onSubmit(finalTitle, note, finalMins, status, status === 'running' ? getKLTime() : commencementDate, collabNames, workflow, collabIds, frequency, isContinuous);
+    onSubmit(
+      finalTitle, 
+      note, 
+      finalMins, 
+      status, 
+      status === 'running' ? getKLTime() : commencementDate, 
+      collabNames, 
+      workflow, 
+      collabIds, 
+      frequency, 
+      isContinuous,
+      pointCalc.impact,
+      pointCalc.complexity
+    );
     // Reset
     setTitle('');
     setMins(120);
@@ -206,11 +222,44 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
     ? 'Weekly — pick days'
     : `Weekly · ${freqDays.sort().map(d => WEEK_DAYS[d].full).join(', ')}`;
 
-  // Point Preview Logic
+  // ─── Edge Function AI Assessment ──────────────────────────────────
+  const [edgeAssessment, setEdgeAssessment] = useState<EdgeAssessmentResult | null>(null);
+  const [edgeLoading, setEdgeLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !title || title.length < 2) {
+      setEdgeAssessment(null);
+      return;
+    }
+    setEdgeLoading(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const result = await assessTaskViaEdge(title, note);
+        setEdgeAssessment(result);
+      } catch {
+        // Fallback handled inside assessTaskViaEdge
+      } finally {
+        setEdgeLoading(false);
+      }
+    }, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [title, note, isOpen]);
+
+  // Point Preview Logic (local calc as instant fallback, edge overrides when ready)
   const activePointConfig = getActivePointConfig(meritConfig);
   const definition = taskDefinitions.find(d => d.title.toLowerCase() === title.toLowerCase());
   const finalMinsForPreview = isBatch ? (mins * batchCount) : mins;
-  const pointCalc = calculateTaskPoints(title, note, finalMinsForPreview, activePointConfig, definition);
+  const localCalc = calculateTaskPoints(title, note, finalMinsForPreview, activePointConfig, definition);
+
+  // Merge: Edge Function result takes priority over local calc
+  const pointCalc = edgeAssessment ? {
+    ...localCalc,
+    impact: edgeAssessment.impact,
+    complexity: edgeAssessment.complexity,
+    points: edgeAssessment.points,
+  } : localCalc;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center px-2 sm:px-4 py-4 sm:py-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
@@ -226,9 +275,19 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
             </h3>
           </div>
           <div className="flex flex-col items-end gap-2 ml-4">
-            <div className="bg-primary/10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-primary/20 flex flex-col items-end shadow-sm">
-              <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-primary opacity-60">Est. Reward</p>
-              <p className="text-sm sm:text-lg font-black text-primary font-headline">+{pointCalc.points} <span className="text-[10px]">MP</span></p>
+            <div className="flex gap-2">
+              <div className="bg-surface-container px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-outline-variant/10 flex flex-col items-end shadow-sm">
+                <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">Impact</p>
+                <p className="text-sm sm:text-base font-black text-on-surface font-headline">{pointCalc.impact || 'Low'}</p>
+              </div>
+              <div className="bg-surface-container px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-outline-variant/10 flex flex-col items-end shadow-sm">
+                <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-on-surface-variant opacity-60">Cmplx</p>
+                <p className="text-sm sm:text-base font-black text-on-surface font-headline">{pointCalc.complexity || 'Low'}</p>
+              </div>
+              <div className="bg-primary/10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-primary/20 flex flex-col items-end shadow-sm">
+                <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-primary opacity-60">Est. Reward</p>
+                <p className="text-sm sm:text-lg font-black text-primary font-headline">+{pointCalc.points} <span className="text-[10px]">MP</span></p>
+              </div>
             </div>
             <button
               onClick={onClose}

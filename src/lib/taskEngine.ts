@@ -1,4 +1,4 @@
-import type { AiPointConfig, Task } from './types';
+import type { AiPointConfig, Task, ImpactLevel, ComplexityLevel } from './types';
 
 export interface PointCalcResult {
   points: number;
@@ -9,6 +9,82 @@ export interface PointCalcResult {
   isFlagged: boolean;
   isInvalid: boolean;
   actualDurationMinutes: number;
+  impact?: ImpactLevel;
+  complexity?: ComplexityLevel;
+}
+
+export function simulateAIAssessment(title: string, note: string): { impact: ImpactLevel, complexity: ComplexityLevel } {
+    const combinedTxt = `${title} ${note}`.toLowerCase();
+    let impact: ImpactLevel | null = null;
+    let complexity: ComplexityLevel | null = null;
+
+    // --- Impact Assessment ---
+    // High Impact: business-critical, revenue-affecting, client-facing, safety, urgent
+    const highImpactKeywords = [
+      'production', 'crash', 'urgent', 'critical', 'crisis', 'vip', 'client',
+      'customer', 'revenue', 'accident', 'breakdown', 'escalation', 'audit',
+      'compliance', 'deadline', 'launch', 'live', 'campaign', 'viral',
+      'fleet', 'expansion', 'contract', 'legal', 'safety', 'inspection'
+    ];
+    // Medium Impact: operational tasks that affect workflows
+    const medImpactKeywords = [
+      'feature', 'design', 'plan', 'report', 'meeting', 'handover',
+      'training', 'onboard', 'schedule', 'booking', 'reservation',
+      'content', 'edit', 'video', 'shoot', 'tiktok', 'social',
+      'claim', 'service', 'maintenance', 'update', 'upgrade',
+      'settle', 'finalise', 'finalize', 'complete', 'submit',
+      'review', 'prepare', 'setup', 'configure'
+    ];
+
+    if (highImpactKeywords.some(kw => combinedTxt.includes(kw))) {
+      impact = 'High';
+    } else if (medImpactKeywords.some(kw => combinedTxt.includes(kw))) {
+      impact = 'Medium';
+    }
+
+    // --- Complexity Assessment ---
+    // High Complexity: multi-step, technical, cross-functional
+    const highComplexityKeywords = [
+      'architecture', 'refactor', 'complex', 'integration', 'migration',
+      'system', 'deploy', 'infrastructure', 'multi', 'cross-functional',
+      'strategy', 'analysis', 'research', 'development', 'build',
+      'restructure', 'overhaul', 'workflow', 'automation'
+    ];
+    // Medium Complexity: standard operational tasks requiring skill
+    const medComplexityKeywords = [
+      'api', 'database', 'server', 'edit', 'video', 'shoot',
+      'configure', 'troubleshoot', 'fix', 'debug', 'optimize',
+      'document', 'process', 'coordinate', 'manage', 'track',
+      'report', 'audit', 'inspect', 'verify', 'test',
+      'content', 'design', 'plan', 'review'
+    ];
+
+    if (highComplexityKeywords.some(kw => combinedTxt.includes(kw))) {
+      complexity = 'High';
+    } else if (medComplexityKeywords.some(kw => combinedTxt.includes(kw))) {
+      complexity = 'Medium';
+    }
+
+    // Deterministic fallback based on title hash (not random, so same title = same result)
+    if (!impact || !complexity) {
+      let hash = 0;
+      for (let i = 0; i < combinedTxt.length; i++) {
+        hash = ((hash << 5) - hash) + combinedTxt.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+      }
+      const levels: ImpactLevel[] = ['Low', 'Medium', 'High'];
+      // Weighted: 30% Low, 50% Medium, 20% High
+      const weightedPick = (seed: number): ImpactLevel => {
+        const v = Math.abs(seed) % 100;
+        if (v < 30) return 'Low';
+        if (v < 80) return 'Medium';
+        return 'High';
+      };
+      if (!impact) impact = weightedPick(hash);
+      if (!complexity) complexity = weightedPick(hash >> 8);
+    }
+
+    return { impact, complexity };
 }
 
 /**
@@ -125,7 +201,9 @@ export function calculateTaskPoints(
   note: string,
   actualMins: number,
   config: AiPointConfig,
-  definition?: { goldenRule?: number, goldenRuleMinutes?: number, estimatedMins?: number, tierMultiplier?: number, isCalibrated: boolean }
+  definition?: { goldenRule?: number, goldenRuleMinutes?: number, estimatedMins?: number, tierMultiplier?: number, isCalibrated: boolean, impact?: ImpactLevel, complexity?: ComplexityLevel },
+  assessedImpact?: ImpactLevel,
+  assessedComplexity?: ComplexityLevel
 ): PointCalcResult {
   const combinedTxt = `${title.toLowerCase()} ${note.toLowerCase()}`;
   
@@ -161,6 +239,18 @@ export function calculateTaskPoints(
 
       // A. If fixed points are defined, use them directly
       if (matchedRule.points !== undefined && matchedRule.points !== null) {
+        // Still run AI assessment for impact/complexity even with fixed-point keywords
+        let kwImpact = assessedImpact;
+        let kwComplexity = assessedComplexity;
+        if (definition?.impact && definition?.complexity) {
+          kwImpact = definition.impact;
+          kwComplexity = definition.complexity;
+        }
+        if (!kwImpact || !kwComplexity) {
+          const ai = simulateAIAssessment(title, note);
+          if (!kwImpact) kwImpact = ai.impact;
+          if (!kwComplexity) kwComplexity = ai.complexity;
+        }
         return {
           points: matchedRule.points,
           tierName: tierName,
@@ -169,107 +259,59 @@ export function calculateTaskPoints(
           efficiencyScore: 1.0,
           isFlagged: false,
           isInvalid: false,
-          actualDurationMinutes: actualMins
+          actualDurationMinutes: actualMins,
+          impact: kwImpact,
+          complexity: kwComplexity
         };
       }
 
-      // B. If no fixed points, treat it as a tier assignment and continue to dynamic calc
-      // We'll update the tierVal used for the rest of the calculation
       keywordTierVal = targetTierVal;
       keywordTierName = tierName;
     }
   }
 
-  // Default tiering logic
-  let tierName = keywordTierName || `Tier 2: ${config.tierNames.tier2}`;
-  let tierVal = keywordTierVal || config.difficultyMultiplier.tier2;
-  const isCalibrated = definition?.isCalibrated ?? false;
+  // Value + Complexity Matrix logic
+  let finalImpact = assessedImpact;
+  let finalComplexity = assessedComplexity;
 
-  // 1. Pre-defined Task Match (From Manager calibration)
-  if (definition) {
-    tierVal = definition.tierMultiplier || config.difficultyMultiplier.tier2;
-    // Map multiplier back to tier name for UI consistency
-    if (tierVal >= config.difficultyMultiplier.tier5) tierName = `Tier 5: ${config.tierNames.tier5}`;
-    else if (tierVal >= config.difficultyMultiplier.tier4) tierName = `Tier 4: ${config.tierNames.tier4}`;
-    else if (tierVal >= config.difficultyMultiplier.tier3) tierName = `Tier 3: ${config.tierNames.tier3}`;
-    else if (tierVal >= config.difficultyMultiplier.tier2) tierName = `Tier 2: ${config.tierNames.tier2}`;
-    else tierName = `Tier 1: ${config.tierNames.tier1}`;
-  } 
-  // 2. Autonomous Keyword Logic (AI Advisor) - ONLY if no explicit keyword rule matched
-  else if (!keywordTierVal) {
-    const t5 = (config.aiKeywords?.tier5 && config.aiKeywords.tier5.length > 0) ? config.aiKeywords.tier5 : ['extraordinary', 'breakthrough', 'innovative', 'architect', 'strategic', 'master', 'visionary', 'overhaul', 'spearhead', 'blueprint', 'enterprise', 'viral', 'campaign launch', 'fleet expansion', 'scale', 'franchise'];
-    const t4 = (config.aiKeywords?.tier4 && config.aiKeywords.tier4.length > 0) ? config.aiKeywords.tier4 : ['critical', 'advanced', 'urgent', 'priority', 'executive', 'oversight', 'escalation', 'crucial', 'high-impact', 'audit', 'deployment', 'launch', 'management', 'lead', 'directing', 'breakdown', 'accident', 'vip client', 'crisis'];
-    const t3 = (config.aiKeywords?.tier3 && config.aiKeywords.tier3.length > 0) ? config.aiKeywords.tier3 : ['complex', 'creative', 'analyze', 'design', 'develop', 'research', 'troubleshoot', 'technical', 'proposal', 'implement', 'review', 'analysis', 'draft', 'plan', 'execution', 'resolve', 'bug', 'fix', 'tiktok video', 'video editing', 'scripting', 'marketing content', 'vehicle maintenance', 'inspection', 'repair', 'shoot', 'edit', 'video storyboard', 'tiktok trend', 'car rental platform'];
-    const t1 = (config.aiKeywords?.tier1 && config.aiKeywords.tier1.length > 0) ? config.aiKeywords.tier1 : ['routine', 'admin', 'filing', 'cleanup', 'log', 'entry', 'simple', 'basic', 'manual', 'repetitive', 'housekeeping', 'data entry', 'print', 'email', 'reply', 'sort', 'organize', 'meeting', 'standup', 'sync', 'chat', 'call', 'followup', 'update', 'check', 'car wash', 'refuel', 'customer inquiry', 'booking confirmation', 'handover', 'daily rental check', 'ehailing driver sync', 'vehicle cleanup'];
-
-    if (t5.some(kw => checkSemanticMatch(combinedTxt, kw))) {
-      tierName = `Tier 5: ${config.tierNames.tier5}`;
-      tierVal = config.difficultyMultiplier.tier5;
-    } else if (t4.some(kw => checkSemanticMatch(combinedTxt, kw))) {
-      tierName = `Tier 4: ${config.tierNames.tier4}`;
-      tierVal = config.difficultyMultiplier.tier4;
-    } else if (t3.some(kw => checkSemanticMatch(combinedTxt, kw))) {
-      tierName = `Tier 3: ${config.tierNames.tier3}`;
-      tierVal = config.difficultyMultiplier.tier3;
-    } else if (t1.some(kw => checkSemanticMatch(combinedTxt, kw))) {
-      tierName = `Tier 1: ${config.tierNames.tier1}`;
-      tierVal = config.difficultyMultiplier.tier1;
-    } else {
-      tierName = `Tier 2: ${config.tierNames.tier2}`;
-      tierVal = config.difficultyMultiplier.tier2;
-    }
+  if (definition?.impact && definition?.complexity) {
+    finalImpact = definition.impact;
+    finalComplexity = definition.complexity;
   }
 
-  const estimatedMins = goldenRule > 0 ? goldenRule : (definition?.estimatedMins || 0);
+  if (!finalImpact || !finalComplexity) {
+    const ai = simulateAIAssessment(title, note);
+    finalImpact = ai.impact;
+    finalComplexity = ai.complexity;
+  }
 
-  // If there's absolutely no estimate, we fall back to a minimal reward or actualMins (should be rare)
-  if (estimatedMins === 0) {
-    const points = Math.max(1, Math.floor(actualMins * tierVal));
-    return { 
-      points, 
-      tierName: `Unestimated (${tierName})`, 
-      tierVal, 
-      hasPriority: false, 
-      efficiencyScore: 1.0, 
-      isFlagged: false,
-      isInvalid: false,
-      actualDurationMinutes: actualMins
+  let points = 10; // default fallback
+  if (config.pointMatrix && config.pointMatrix[finalImpact] && config.pointMatrix[finalImpact][finalComplexity]) {
+    points = config.pointMatrix[finalImpact][finalComplexity];
+  } else {
+    // Hardcoded fallback matrix if config missing
+    const fallbackMatrix = {
+      Low: { Low: 10, Medium: 20, High: 30 },
+      Medium: { Low: 20, Medium: 40, High: 60 },
+      High: { Low: 30, Medium: 60, High: 100 },
     };
+    points = fallbackMatrix[finalImpact][finalComplexity];
   }
 
-  // ANTIGRAVITY INCENTIVE MODE: 
-  // Base Reward is locked to the Estimated Time. 
-  // Finishing early yields FULL estimated reward (flipping the incentive to be fast).
-  // Exceeding the estimate decays the reward (e.g., losing 1 MP per minute over).
+  const isFlagged = false;
+  const isInvalid = false;
   
-  let basePoints = Math.floor(estimatedMins * tierVal);
-  let points = basePoints;
-  let efficiencyScore = 1.0;
-  
-  if (actualMins > estimatedMins) {
-    const overtimeMins = actualMins - estimatedMins;
-    // Penalty: lose 1 MP (scaled by tier, or just 1 absolute MP) for every minute over.
-    // We use Math.floor(overtimeMins) to subtract from basePoints
-    points = Math.max(1, basePoints - Math.floor(overtimeMins));
-    efficiencyScore = points / basePoints; // Reflect the decay in efficiency score
-  }
-
-  const isFlagged = efficiencyScore < 0.70; // Flag for manager review if < 70% efficient
-  const isInvalid = actualMins > (estimatedMins * 4);
-  
-  const displayTierName = isCalibrated 
-    ? `Calibrated (${tierName})` 
-    : `Performance Mode (${tierName})`;
-
   return { 
     points, 
-    tierName: displayTierName, 
-    tierVal, 
+    tierName: `Matrix (${finalImpact} Impact / ${finalComplexity} Cmplx)`, 
+    tierVal: keywordTierVal || config.difficultyMultiplier.tier2, 
     hasPriority: false, 
-    efficiencyScore, 
+    efficiencyScore: 1.0, 
     isFlagged,
     isInvalid,
-    actualDurationMinutes: actualMins
+    actualDurationMinutes: actualMins,
+    impact: finalImpact,
+    complexity: finalComplexity
   };
 }
 

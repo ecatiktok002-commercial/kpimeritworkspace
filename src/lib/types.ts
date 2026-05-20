@@ -1,6 +1,9 @@
 // TypeScript type definitions for the KPI Merit system
 export interface Achievement { id: string; title: string; description: string; icon: string; trigger_type: string; }
 
+export type ImpactLevel = 'Low' | 'Medium' | 'High';
+export type ComplexityLevel = 'Low' | 'Medium' | 'High';
+
 
 /** Frequency rule for repeating tasks */
 export interface TaskFrequency {
@@ -22,6 +25,8 @@ export interface Task {
   tierName: string;
   tierVal: number;
   points: number;
+  impact?: ImpactLevel;
+  complexity?: ComplexityLevel;
   commencementDate?: string;
   /** ID of the staff member who created the task (data isolation) */
   ownerId?: string;
@@ -52,6 +57,8 @@ export interface TaskDefinition {
   goldenRuleMinutes?: number;
   tierMultiplier: number;
   isCalibrated: boolean;
+  impact?: ImpactLevel;
+  complexity?: ComplexityLevel;
 }
 
 export interface TaskCalibration {
@@ -110,6 +117,11 @@ export interface MeritConfig {
   multiplierTier4: number;
   tier5Name: string;
   multiplierTier5: number;
+  pointMatrix?: {
+    Low: { Low: number; Medium: number; High: number };
+    Medium: { Low: number; Medium: number; High: number };
+    High: { Low: number; Medium: number; High: number };
+  };
   keywordRules: KeywordRule[];
   aiKeywords?: {
     tier5: string[];
@@ -182,6 +194,11 @@ export interface AiPointConfig {
     tier4: string[];
     tier3: string[];
     tier1: string[];
+  };
+  pointMatrix?: {
+    Low: { Low: number; Medium: number; High: number };
+    Medium: { Low: number; Medium: number; High: number };
+    High: { Low: number; Medium: number; High: number };
   };
 }
 
