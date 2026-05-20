@@ -133,6 +133,31 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
     }
   }, [status, isOpen, initialTask]);
 
+  // ─── Edge Function AI Assessment ──────────────────────────────────
+  const [edgeAssessment, setEdgeAssessment] = useState<EdgeAssessmentResult | null>(null);
+  const [edgeLoading, setEdgeLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !title || title.length < 2) {
+      setEdgeAssessment(null);
+      return;
+    }
+    setEdgeLoading(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const result = await assessTaskViaEdge(title, note);
+        setEdgeAssessment(result);
+      } catch {
+        // Fallback handled inside assessTaskViaEdge
+      } finally {
+        setEdgeLoading(false);
+      }
+    }, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [title, note, isOpen]);
+
   if (!isOpen) return null;
 
   const handleAddStep = () => {
@@ -221,31 +246,6 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
     : freqDays.length === 0
     ? 'Weekly — pick days'
     : `Weekly · ${freqDays.sort().map(d => WEEK_DAYS[d].full).join(', ')}`;
-
-  // ─── Edge Function AI Assessment ──────────────────────────────────
-  const [edgeAssessment, setEdgeAssessment] = useState<EdgeAssessmentResult | null>(null);
-  const [edgeLoading, setEdgeLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!isOpen || !title || title.length < 2) {
-      setEdgeAssessment(null);
-      return;
-    }
-    setEdgeLoading(true);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const result = await assessTaskViaEdge(title, note);
-        setEdgeAssessment(result);
-      } catch {
-        // Fallback handled inside assessTaskViaEdge
-      } finally {
-        setEdgeLoading(false);
-      }
-    }, 600);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [title, note, isOpen]);
 
   // Point Preview Logic (local calc as instant fallback, edge overrides when ready)
   const activePointConfig = getActivePointConfig(meritConfig);
