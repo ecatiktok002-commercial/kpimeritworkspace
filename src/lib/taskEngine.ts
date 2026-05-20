@@ -1,4 +1,5 @@
 import type { AiPointConfig, Task, ImpactLevel, ComplexityLevel } from './types';
+import { HIGH_IMPACT_KEYWORDS, MED_IMPACT_KEYWORDS, HIGH_CMPLX_KEYWORDS, MED_CMPLX_KEYWORDS, DEFAULT_ASSESSMENT_MATRIX } from './constants/assessmentKeywords';
 
 export interface PointCalcResult {
   points: number;
@@ -19,49 +20,16 @@ export function simulateAIAssessment(title: string, note: string): { impact: Imp
     let complexity: ComplexityLevel | null = null;
 
     // --- Impact Assessment ---
-    // High Impact: business-critical, revenue-affecting, client-facing, safety, urgent
-    const highImpactKeywords = [
-      'production', 'crash', 'urgent', 'critical', 'crisis', 'vip', 'client',
-      'customer', 'revenue', 'accident', 'breakdown', 'escalation', 'audit',
-      'compliance', 'deadline', 'launch', 'live', 'campaign', 'viral',
-      'fleet', 'expansion', 'contract', 'legal', 'safety', 'inspection'
-    ];
-    // Medium Impact: operational tasks that affect workflows
-    const medImpactKeywords = [
-      'feature', 'design', 'plan', 'report', 'meeting', 'handover',
-      'training', 'onboard', 'schedule', 'booking', 'reservation',
-      'content', 'edit', 'video', 'shoot', 'tiktok', 'social',
-      'claim', 'service', 'maintenance', 'update', 'upgrade',
-      'settle', 'finalise', 'finalize', 'complete', 'submit',
-      'review', 'prepare', 'setup', 'configure'
-    ];
-
-    if (highImpactKeywords.some(kw => combinedTxt.includes(kw))) {
+    if (HIGH_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       impact = 'High';
-    } else if (medImpactKeywords.some(kw => combinedTxt.includes(kw))) {
+    } else if (MED_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       impact = 'Medium';
     }
 
     // --- Complexity Assessment ---
-    // High Complexity: multi-step, technical, cross-functional
-    const highComplexityKeywords = [
-      'architecture', 'refactor', 'complex', 'integration', 'migration',
-      'system', 'deploy', 'infrastructure', 'multi', 'cross-functional',
-      'strategy', 'analysis', 'research', 'development', 'build',
-      'restructure', 'overhaul', 'workflow', 'automation'
-    ];
-    // Medium Complexity: standard operational tasks requiring skill
-    const medComplexityKeywords = [
-      'api', 'database', 'server', 'edit', 'video', 'shoot',
-      'configure', 'troubleshoot', 'fix', 'debug', 'optimize',
-      'document', 'process', 'coordinate', 'manage', 'track',
-      'report', 'audit', 'inspect', 'verify', 'test',
-      'content', 'design', 'plan', 'review'
-    ];
-
-    if (highComplexityKeywords.some(kw => combinedTxt.includes(kw))) {
+    if (HIGH_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       complexity = 'High';
-    } else if (medComplexityKeywords.some(kw => combinedTxt.includes(kw))) {
+    } else if (MED_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       complexity = 'Medium';
     }
 
@@ -147,6 +115,7 @@ const SEMANTIC_GROUPS = [
   ['urgent', 'segara', 'pantas', 'priority', 'critical', 'asap', 'emergency', 'immediate', 'kecemasan'],
   ['service', 'servis', 'maintenance', 'repair', 'fix', 'inspection', 'checkup', 'workshop', 'baiki'],
   ['send', 'hantar', 'deliver', 'delivery', 'transport', 'drop', 'pickup', 'pick'],
+  ['marketing', 'campaign', 'viral', 'ad', 'tiktok', 'social', 'posting', 'poster', 'graphic'],
 ];
 
 /**
@@ -290,12 +259,7 @@ export function calculateTaskPoints(
     points = config.pointMatrix[finalImpact][finalComplexity];
   } else {
     // Hardcoded fallback matrix if config missing
-    const fallbackMatrix = {
-      Low: { Low: 10, Medium: 20, High: 30 },
-      Medium: { Low: 20, Medium: 40, High: 60 },
-      High: { Low: 30, Medium: 60, High: 100 },
-    };
-    points = fallbackMatrix[finalImpact][finalComplexity];
+    points = DEFAULT_ASSESSMENT_MATRIX[finalImpact][finalComplexity];
   }
 
   const isFlagged = false;

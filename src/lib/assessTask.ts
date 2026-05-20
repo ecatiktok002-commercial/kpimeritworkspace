@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import type { ImpactLevel, ComplexityLevel } from './types';
+import { HIGH_IMPACT_KEYWORDS, MED_IMPACT_KEYWORDS, HIGH_CMPLX_KEYWORDS, MED_CMPLX_KEYWORDS, DEFAULT_ASSESSMENT_MATRIX } from './constants/assessmentKeywords';
 
 export interface EdgeAssessmentResult {
   impact: ImpactLevel;
@@ -45,19 +46,14 @@ export async function assessTaskViaEdge(title: string, note: string): Promise<Ed
 function localFallbackAssessment(title: string, note: string): EdgeAssessmentResult {
   const combinedTxt = `${title} ${note}`.toLowerCase();
 
-  const HIGH_IMPACT = ['production', 'crash', 'urgent', 'critical', 'crisis', 'vip', 'client', 'customer', 'revenue', 'escalation', 'audit', 'compliance', 'deadline', 'legal', 'accident', 'breakdown', 'police report', 'stolen', 'insurance', 'claim', 'compound', 'summon', 'damage', 'fleet expansion', 'safety', 'launch', 'live', 'campaign', 'viral', 'pitch', 'ad spend', 'budget'];
-  const MED_IMPACT = ['feature', 'design', 'plan', 'report', 'meeting', 'training', 'onboard', 'update', 'upgrade', 'settle', 'finalize', 'complete', 'submit', 'review', 'prepare', 'handover', 'schedule', 'booking', 'reservation', 'rent', 'rental', 'return', 'collect', 'deliver', 'car wash', 'service', 'maintenance', 'oil change', 'tyre', 'battery', 'puspakom', 'inspection', 'e-hailing', 'renewal', 'contract', 'late payment', 'deposit', 'content', 'edit', 'video', 'shoot', 'tiktok', 'social', 'script', 'caption', 'graphic design', 'poster', 'posting'];
-  const HIGH_CMPLX = ['architecture', 'refactor', 'complex', 'integration', 'migration', 'system', 'deploy', 'infrastructure', 'strategy', 'analysis', 'research', 'development', 'build', 'restructure', 'overhaul', 'workflow', 'automation', 'cross-functional', 'insurance claim', 'fleet management', 'dispute', 'major repair', 'marketing strategy', 'campaign optimization', 'client onboarding'];
-  const MED_CMPLX = ['api', 'database', 'server', 'configure', 'troubleshoot', 'fix', 'debug', 'optimize', 'document', 'process', 'coordinate', 'manage', 'track', 'report', 'audit', 'inspect', 'verify', 'test', 'booking handling', 'routine maintenance', 'service scheduling', 'edit', 'video', 'shoot', 'content', 'design', 'plan', 'review', 'social media', 'tiktok', 'poster', 'caption'];
-
   let impact: ImpactLevel | null = null;
   let complexity: ComplexityLevel | null = null;
 
-  if (HIGH_IMPACT.some(kw => combinedTxt.includes(kw))) impact = 'High';
-  else if (MED_IMPACT.some(kw => combinedTxt.includes(kw))) impact = 'Medium';
+  if (HIGH_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) impact = 'High';
+  else if (MED_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) impact = 'Medium';
 
-  if (HIGH_CMPLX.some(kw => combinedTxt.includes(kw))) complexity = 'High';
-  else if (MED_CMPLX.some(kw => combinedTxt.includes(kw))) complexity = 'Medium';
+  if (HIGH_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) complexity = 'High';
+  else if (MED_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) complexity = 'Medium';
 
   if (!impact || !complexity) {
     let hash = 0;
@@ -75,16 +71,10 @@ function localFallbackAssessment(title: string, note: string): EdgeAssessmentRes
     if (!complexity) complexity = pick(hash >> 8);
   }
 
-  const matrix = {
-    Low: { Low: 10, Medium: 20, High: 30 },
-    Medium: { Low: 20, Medium: 40, High: 60 },
-    High: { Low: 30, Medium: 60, High: 100 },
-  };
-
   return {
     impact,
     complexity,
-    points: matrix[impact][complexity],
+    points: DEFAULT_ASSESSMENT_MATRIX[impact][complexity],
     reasoning: 'Local fallback (Edge Function unavailable)',
     source: 'hash_fallback',
   };
