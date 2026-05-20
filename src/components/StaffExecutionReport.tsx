@@ -187,7 +187,7 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
                       {task.complexity || '-'}
                     </td>
                     <td className="p-5 text-right font-mono text-on-surface-variant">
-                      {task.actualDurationMinutes} min
+                      {Math.round((task as any).actual_duration_minutes || task.actualDurationMinutes || (((task as any).elapsed_sec || (task as any).total_sec || 0) / 60))} min
                     </td>
                     <td className="p-5 text-right font-bold text-primary">
                       +{task.points} pt
