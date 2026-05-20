@@ -17,6 +17,11 @@ export const MED_IMPACT_KEYWORDS = [
   'content', 'edit', 'video', 'shoot', 'tiktok', 'social', 'script', 'caption', 'graphic design', 'poster', 'posting'
 ];
 
+export const LOW_IMPACT_KEYWORDS = [
+  'internal', 'housekeeping', 'organize', 'sort', 'file', 'print', 'copy', 'scan', 'data entry',
+  'clean', 'tidy', 'refuel', 'petrol', 'top up', 'routine', 'basic'
+];
+
 export const HIGH_CMPLX_KEYWORDS = [
   'architecture', 'refactor', 'complex', 'integration', 'migration', 'system',
   'deploy', 'infrastructure', 'strategy', 'analysis', 'research', 'development',
@@ -30,6 +35,12 @@ export const MED_CMPLX_KEYWORDS = [
   'document', 'process', 'coordinate', 'manage', 'track', 'report', 'audit', 'inspect', 'verify', 'test',
   'booking handling', 'routine maintenance', 'service scheduling',
   'edit', 'video', 'shoot', 'content', 'design', 'plan', 'review', 'social media', 'tiktok', 'poster', 'caption'
+];
+
+export const LOW_CMPLX_KEYWORDS = [
+  'car wash', 'wash', 'clean', 'tidy', 'refuel', 'petrol', 'top up', 'print', 'copy', 'scan', 'file',
+  'data entry', 'reply', 'whatsapp', 'email', 'message', 'comment', 'handover', 'return', 'collect', 'deliver', 'dispatch',
+  'send', 'basic', 'simple'
 ];
 
 export const DEFAULT_ASSESSMENT_MATRIX: Record<ImpactLevel, Record<ComplexityLevel, number>> = {

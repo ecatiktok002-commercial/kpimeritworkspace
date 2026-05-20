@@ -1,5 +1,5 @@
 import type { AiPointConfig, Task, ImpactLevel, ComplexityLevel } from './types';
-import { HIGH_IMPACT_KEYWORDS, MED_IMPACT_KEYWORDS, HIGH_CMPLX_KEYWORDS, MED_CMPLX_KEYWORDS, DEFAULT_ASSESSMENT_MATRIX } from './constants/assessmentKeywords';
+import { HIGH_IMPACT_KEYWORDS, MED_IMPACT_KEYWORDS, LOW_IMPACT_KEYWORDS, HIGH_CMPLX_KEYWORDS, MED_CMPLX_KEYWORDS, LOW_CMPLX_KEYWORDS, DEFAULT_ASSESSMENT_MATRIX } from './constants/assessmentKeywords';
 
 export interface PointCalcResult {
   points: number;
@@ -24,6 +24,8 @@ export function simulateAIAssessment(title: string, note: string): { impact: Imp
       impact = 'High';
     } else if (MED_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       impact = 'Medium';
+    } else if (LOW_IMPACT_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
+      impact = 'Low';
     }
 
     // --- Complexity Assessment ---
@@ -31,6 +33,8 @@ export function simulateAIAssessment(title: string, note: string): { impact: Imp
       complexity = 'High';
     } else if (MED_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
       complexity = 'Medium';
+    } else if (LOW_CMPLX_KEYWORDS.some(kw => combinedTxt.includes(kw))) {
+      complexity = 'Low';
     }
 
     // Deterministic fallback based on title hash (not random, so same title = same result)

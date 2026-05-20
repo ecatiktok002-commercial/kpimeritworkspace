@@ -53,6 +53,11 @@ const MED_IMPACT_KEYWORDS = [
   'content', 'edit', 'video', 'shoot', 'tiktok', 'social', 'script', 'caption', 'graphic design', 'poster', 'posting'
 ];
 
+const LOW_IMPACT_KEYWORDS = [
+  'internal', 'housekeeping', 'organize', 'sort', 'file', 'print', 'copy', 'scan', 'data entry',
+  'clean', 'tidy', 'refuel', 'petrol', 'top up', 'routine', 'basic'
+];
+
 const HIGH_COMPLEXITY_KEYWORDS = [
   // General & Tech
   'architecture', 'refactor', 'complex', 'integration', 'migration', 'system',
@@ -72,6 +77,12 @@ const MED_COMPLEXITY_KEYWORDS = [
   'booking handling', 'routine maintenance', 'service scheduling',
   // Marketing Specific
   'edit', 'video', 'shoot', 'content', 'design', 'plan', 'review', 'social media', 'tiktok', 'poster', 'caption'
+];
+
+const LOW_COMPLEXITY_KEYWORDS = [
+  'car wash', 'wash', 'clean', 'tidy', 'refuel', 'petrol', 'top up', 'print', 'copy', 'scan', 'file',
+  'data entry', 'reply', 'whatsapp', 'email', 'message', 'comment', 'handover', 'return', 'collect', 'deliver', 'dispatch',
+  'send', 'basic', 'simple'
 ];
 
 // ─── Deterministic Hash ──────────────────────────────────────────────
@@ -101,12 +112,16 @@ function keywordAssess(text: string): { impact: ImpactLevel | null; complexity: 
     impact = 'High';
   } else if (MED_IMPACT_KEYWORDS.some(kw => lower.includes(kw))) {
     impact = 'Medium';
+  } else if (LOW_IMPACT_KEYWORDS.some(kw => lower.includes(kw))) {
+    impact = 'Low';
   }
 
   if (HIGH_COMPLEXITY_KEYWORDS.some(kw => lower.includes(kw))) {
     complexity = 'High';
   } else if (MED_COMPLEXITY_KEYWORDS.some(kw => lower.includes(kw))) {
     complexity = 'Medium';
+  } else if (LOW_COMPLEXITY_KEYWORDS.some(kw => lower.includes(kw))) {
+    complexity = 'Low';
   }
 
   return { impact, complexity };
