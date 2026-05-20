@@ -7,10 +7,10 @@ import AddTaskModal from '@/components/AddTaskModal';
 import AddModuleModal from '@/components/AddModuleModal';
 import EconomyManagerPage from '@/components/EconomyManagerPage';
 import StaffEconomyPage from '@/components/StaffEconomyPage';
+import StaffExecutionReport from '@/components/StaffExecutionReport';
 import type { Task, TaskFrequency, StaffProfile, TeamMember, AppealItem, SkillModule, MeritConfig, OrganizationConfig, ActivityLog, TaskDefinition, AiPointConfig, ModuleEnrollment, ModuleStep, KeywordRule, UserAuthProfile } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { SEED_PROFILE, SEED_MODULES, SEED_MERIT_CONFIG, SEED_ORG_CONFIG } from '@/lib/mockDb';
-import ManagerCalibrationView from '@/components/ManagerCalibrationView';
 import EfficiencyBadge from '@/components/EfficiencyBadge';
 import ManagerLedgerView from '@/components/ManagerLedgerView';
 import ManagerDashboardView from '@/components/ManagerDashboardView';
@@ -20,9 +20,9 @@ import { getKLTime, fmt, getActivePointConfig } from '@/lib/utils';
 import { useTaskLifecycle } from '@/hooks/useTaskLifecycle';
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
 // MAIN APP â€” Single-Page with Tab-Based View Switching
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
 
 export default function MeritKPIApp() {
   // â”€â”€ Auth & Global State â”€â”€
@@ -1699,7 +1699,7 @@ export default function MeritKPIApp() {
               {[
                 { key: 'dashboard', icon: 'dashboard', label: 'Overview' },
                 { key: 'economy', icon: 'local_play', label: 'Bounty & Rewards' },
-                { key: 'calibration', icon: 'account_balance', label: 'Economy & Standards', badge: displayRedemptionsBadge },
+                { key: 'calibration', icon: 'monitoring', label: 'Staff Performance' },
                 { key: 'resolutions', icon: 'rule', label: 'Resolution Queue', badge: displayAppealsBadge },
                 { key: 'org', icon: 'corporate_fare', label: 'Settings' },
               ].map(sub => (
@@ -1795,7 +1795,7 @@ export default function MeritKPIApp() {
                     }`}
                   >
                     <span className="material-symbols-outlined text-[20px]">account_balance</span>
-                    <span className="font-headline text-sm">Economy & Standards</span>
+                    <span className="font-headline text-sm">Staff Performance</span>
                   </div>
 
                   <div 
@@ -1833,15 +1833,7 @@ export default function MeritKPIApp() {
             <div className="max-w-7xl mx-auto">
               {managerSubView === 'dashboard' && <ManagerDashboardView team={team} tasks={tasks} activityLog={activityLog} onDeleteStaff={handleDeleteStaff} onMarkTaskViewed={handleMarkTaskViewed} viewedIds={viewedIds} markViewed={markViewed} isManager={authProfile?.is_manager} flaggedTasks={flaggedTasks} onResolveFlag={handleResolveFlag} onPauseTask={pauseTask} meritConfig={meritConfig} />}
 
-              {managerSubView === 'calibration' && <ManagerCalibrationView 
-                taskDefinitions={taskDefinitions} 
-                setTaskDefinitions={setTaskDefinitions} 
-                meritConfig={meritConfig} 
-                setMeritConfig={setMeritConfig} 
-                activityLog={activityLog}
-                viewedIds={viewedIds}
-                markViewed={markViewed}
-              />}
+              {managerSubView === 'calibration' && <StaffExecutionReport team={team} />}
               {managerSubView === 'personnel' && <ManagerOrgView config={orgConfig} setConfig={setOrgConfig} onDeleteStaff={handleDeleteStaff} team={team} setTeam={setTeam} onSaveRoleSync={handleSaveRoleSync} viewedIds={viewedIds} markViewed={markViewed} meritConfig={meritConfig} setMeritConfig={setMeritConfig} />}
               {managerSubView === 'economy' && currentProfile?.is_manager && <EconomyManagerPage onBack={() => setManagerSubView('dashboard')} viewedIds={viewedIds} markViewed={markViewed} tasks={tasks} />}
               {managerSubView === 'training' && (
@@ -1886,18 +1878,7 @@ export default function MeritKPIApp() {
                       )}
                     </section>
 
-                    {/* Redemptions Section - Moved here from EconomyManagerPage for consolidation */}
-                    <section>
-                       <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant mb-6 flex items-center gap-4">
-                        <span className="material-symbols-outlined text-sm">redeem</span>
-                        Reward Redemptions
-                        <div className="h-px flex-1 bg-outline-variant/10"></div>
-                      </h3>
-                      <div className="bg-surface-container-lowest p-6 rounded-3xl border border-outline-variant/10 text-center text-on-surface-variant italic text-sm">
-                        Redemptions are now managed directly within the Economy & Standards view for better transactional context.
-                        <button onClick={() => setManagerSubView('calibration')} className="text-primary font-bold ml-2 underline">Go to Economy & Standards</button>
-                      </div>
-                    </section>
+
                   </div>
                 </div>
               )}
