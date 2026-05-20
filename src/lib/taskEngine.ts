@@ -15,7 +15,7 @@ export interface PointCalcResult {
 }
 
 export function simulateAIAssessment(title: string, note: string): { impact: ImpactLevel, complexity: ComplexityLevel } {
-    const combinedTxt = `${title} ${note}`.toLowerCase();
+    const combinedTxt = `${title || ''} ${note || ''}`.toLowerCase();
     let impact: ImpactLevel | null = null;
     let complexity: ComplexityLevel | null = null;
 
@@ -174,7 +174,7 @@ export function calculateTaskPoints(
   assessedImpact?: ImpactLevel,
   assessedComplexity?: ComplexityLevel
 ): PointCalcResult {
-  const combinedTxt = `${title.toLowerCase()} ${note.toLowerCase()}`;
+  const combinedTxt = `${title || ''} ${note || ''}`.toLowerCase();
   
   const goldenRule = definition?.goldenRule || definition?.goldenRuleMinutes || 0;
 

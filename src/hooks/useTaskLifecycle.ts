@@ -410,7 +410,7 @@ export function useTaskLifecycle(
 
   const handleAddTask = useCallback((title: string, note: string, mins: number, status: 'queued' | 'running' | 'paused', commencementDate: string, collaborators: string[] = [], workflow: { id: string; name: string; isCompleted: boolean }[] = [], collaboratorIds: string[] = [], frequency: TaskFrequency = { type: 'once' }, isContinuous: boolean = false, assessedImpact?: ImpactLevel, assessedComplexity?: ComplexityLevel) => {
     registerActivity();
-    const definition = taskDefinitions.find(d => d.title.toLowerCase() === title.toLowerCase());
+    const definition = taskDefinitions.find(d => (d.title || '').toLowerCase() === (title || '').toLowerCase());
     const activePointConfig = getActivePointConfig(meritConfig);
     const calc = calculateTaskPoints(
       title, 

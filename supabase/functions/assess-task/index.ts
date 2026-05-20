@@ -134,7 +134,7 @@ export default {
       }
 
       const supabase = ctx.supabaseAdmin; // Use admin client to bypass RLS
-      const combinedText = `${title} ${note}`.toLowerCase();
+      const combinedTxt = `${title || ''} ${note || ''}`.toLowerCase();
       const reasons: string[] = [];
 
       // ──────────────────────────────────────────────────────────────
@@ -177,9 +177,9 @@ export default {
 
       if (calibrationData && calibrationData.length > 0) {
         // Find similar tasks (title words overlap)
-        const titleWords = title.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
+        const titleWords = (title || '').toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
         const similar = calibrationData.filter((cal: any) => {
-          const calWords = cal.task_title.toLowerCase().split(/\s+/);
+          const calWords = (cal.task_title || '').toLowerCase().split(/\s+/);
           const overlap = titleWords.filter((w: string) => calWords.some((cw: string) => cw.includes(w) || w.includes(cw)));
           return overlap.length >= Math.max(1, Math.floor(titleWords.length * 0.5));
         });

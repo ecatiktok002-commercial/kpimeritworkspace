@@ -149,7 +149,7 @@ export default function ManagerCalibrationView({
     const avgMinutes = recentStats[title]?.avg || input.actual_duration_minutes || 0;
     
     // Check if already exists
-    if (taskDefinitions.some(d => d.title.toLowerCase() === title.toLowerCase())) {
+    if (taskDefinitions.some(d => (d.title || '').toLowerCase() === (title || '').toLowerCase())) {
       return alert('This task already exists in the Standardized Definitions.');
     }
 
@@ -301,7 +301,7 @@ export default function ManagerCalibrationView({
                   ];
 
                   for (const p of stdPresets) {
-                    if (!taskDefinitions.some(d => d.title.toLowerCase() === p.title.toLowerCase())) {
+                    if (!taskDefinitions.some(d => (d.title || '').toLowerCase() === (p.title || '').toLowerCase())) {
                       const { data } = await supabase.from('task_definitions').insert({
                         title: p.title,
                         golden_rule_minutes: p.mins,

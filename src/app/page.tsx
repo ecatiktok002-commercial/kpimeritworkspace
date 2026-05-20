@@ -1453,11 +1453,11 @@ export default function MeritKPIApp() {
                 // Apply Search & Filter
                 let filteredList = completedList;
                 if (archiveSearchQuery.trim()) {
-                  filteredList = filteredList.filter(t => t.title.toLowerCase().includes(archiveSearchQuery.toLowerCase()) || (t.note && t.note.toLowerCase().includes(archiveSearchQuery.toLowerCase())));
+                  filteredList = filteredList.filter(t => (t.title || '').toLowerCase().includes(archiveSearchQuery.toLowerCase()) || (t.note && t.note.toLowerCase().includes(archiveSearchQuery.toLowerCase())));
                 }
                 if (archiveFilter !== 'All') {
                   if (archiveFilter === 'High Tier') {
-                    filteredList = filteredList.filter(t => t.tierName.toLowerCase().includes('tier 3') || t.tierName.toLowerCase().includes('tier 4'));
+                    filteredList = filteredList.filter(t => (t.tierName || '').toLowerCase().includes('tier 3') || (t.tierName || '').toLowerCase().includes('tier 4'));
                   } else if (archiveFilter === 'Flagged') {
                     filteredList = filteredList.filter(t => t.isFlagged);
                   }

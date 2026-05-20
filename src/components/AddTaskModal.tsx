@@ -249,7 +249,7 @@ export default function AddTaskModal({ isOpen, onClose, onSubmit, staffList = []
 
   // Point Preview Logic (local calc as instant fallback, edge overrides when ready)
   const activePointConfig = getActivePointConfig(meritConfig);
-  const definition = taskDefinitions.find(d => d.title.toLowerCase() === title.toLowerCase());
+  const definition = taskDefinitions.find(d => (d.title || '').toLowerCase() === (title || '').toLowerCase());
   const finalMinsForPreview = isBatch ? (mins * batchCount) : mins;
   const localCalc = calculateTaskPoints(title, note, finalMinsForPreview, activePointConfig, definition);
 
