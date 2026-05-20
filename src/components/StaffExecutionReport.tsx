@@ -157,7 +157,8 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
             <p className="font-bold uppercase tracking-widest text-sm">No tasks completed in this timeframe</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-container-high border-b border-outline-variant/10">
                 <tr className="text-xs uppercase tracking-widest text-on-surface-variant">
@@ -220,8 +221,8 @@ export default function StaffExecutionReport({ team }: StaffExecutionReportProps
               </div>
             </div>
           )}
-        </div>
-      )}
+          </>
+        )}
       </div>
     </div>
   );
