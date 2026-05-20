@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { calculateTaskPoints } from '@/lib/taskEngine';
-import type { Task, ActivityLog, MeritConfig, StaffProfile, TaskFrequency, TaskDefinition, UserAuthProfile } from '@/lib/types';
+import type { Task, ActivityLog, MeritConfig, StaffProfile, TaskFrequency, TaskDefinition, UserAuthProfile, ImpactLevel, ComplexityLevel } from '@/lib/types';
 import { getKLTime, getActivePointConfig } from '@/lib/utils';
 
 export function useTaskLifecycle(
