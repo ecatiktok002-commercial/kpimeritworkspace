@@ -353,6 +353,27 @@ export function useTaskLifecycle(
         commencementDate: getNextRecurrenceDate(task),
         workflow: task.workflow ? task.workflow.map(w => ({ ...w, isCompleted: false })) : task.workflow,
       };
+
+      const completedTaskCopy: Task = {
+        ...task,
+        id: crypto.randomUUID(),
+        status: 'completed' as const,
+        elapsedSec: task.totalSec,
+        lastCompletedDate: getKLTime(),
+        completedAt: getKLTime(),
+        actualDurationMinutes: actualMins,
+        efficiencyScore: efficiencyScore,
+        isFlagged: isFlagged,
+        points: pointsEarned
+      };
+
+      setTasks(prev => {
+        const withUpdated = prev.map(t => t.id === id ? updatedTask : t);
+        return [...withUpdated, completedTaskCopy];
+      });
+
+      supabase.from('tasks').insert([mapTaskToDB(completedTaskCopy)]).then();
+      supabase.from('tasks').upsert([mapTaskToDB(updatedTask)]).then();
     } else {
       updatedTask = { 
         ...task, 
@@ -365,9 +386,11 @@ export function useTaskLifecycle(
         isFlagged: isFlagged,
         points: pointsEarned
       };
+
+      setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      supabase.from('tasks').upsert([mapTaskToDB(updatedTask)]).then();
     }
 
-    setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
     // Live-sync team state: staff goes back to Awaiting Task
     if (staffId) {
       setTeam(prev => prev.map(m => m.id === staffId ? { ...m, currentTask: 'Awaiting Task', status: 'online' as const } : m));
@@ -404,8 +427,6 @@ export function useTaskLifecycle(
         }]).then();
       }
     });
-
-    supabase.from('tasks').upsert([mapTaskToDB(updatedTask)]).then();
   }, [tasks, authProfile, profile.name, meritConfig, mapTaskToDB]);
 
   const handleAddTask = useCallback((title: string, note: string, mins: number, status: 'queued' | 'running' | 'paused', commencementDate: string, collaborators: string[] = [], workflow: { id: string; name: string; isCompleted: boolean }[] = [], collaboratorIds: string[] = [], frequency: TaskFrequency = { type: 'once' }, isContinuous: boolean = false, assessedImpact?: ImpactLevel, assessedComplexity?: ComplexityLevel) => {
