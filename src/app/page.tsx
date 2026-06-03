@@ -1156,6 +1156,8 @@ export default function MeritKPIApp() {
                                 <span className="material-symbols-outlined text-[11px]">autorenew</span>
                                 {task.frequency.type === 'daily'
                                   ? 'Daily'
+                                  : task.frequency.type === 'monthly'
+                                  ? `Monthly (Day ${task.frequency.triggerDate || 1})`
                                   : task.frequency.days && task.frequency.days.length > 0
                                   ? task.frequency.days.sort().map(d => ['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join('·')
                                   : 'Weekly'}
