@@ -224,7 +224,7 @@ export function useTaskLifecycle(
       next.setDate(next.getDate() + 1);
       next.setHours(8, 0, 0, 0);
       const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00`;
+      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00+08:00`;
     }
     if (task.frequency?.type === 'weekly' && task.frequency.days && task.frequency.days.length > 0) {
       const today = klNow.getDay();
@@ -235,7 +235,7 @@ export function useTaskLifecycle(
       const next = new Date(klNow);
       next.setDate(next.getDate() + diff);
       const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00`;
+      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00+08:00`;
     }
     if (task.frequency?.type === 'monthly' && task.frequency.triggerDate) {
       const next = new Date(klNow);
@@ -258,7 +258,7 @@ export function useTaskLifecycle(
       next.setFullYear(targetYear, targetMonth, actualTargetDate);
       next.setHours(8, 0, 0, 0);
       const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00`;
+      return `${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}T08:00+08:00`;
     }
     return getKLTime();
   };
