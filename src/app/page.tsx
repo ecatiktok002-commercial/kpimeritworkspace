@@ -147,7 +147,9 @@ export default function UnifiedMeritApp() {
   const [activeView, setActiveView] = useState('missions'); // staff views: missions, training, rewards, leaderboard
   const [managerSubView, setManagerSubView] = useState<'board' | 'disputes' | 'economy' | 'settings'>('board');
   const [activeBoardTab, setActiveBoardTab] = useState<'kanban' | 'matrix'>('kanban');
-  const [activeRightTab, setActiveRightTab] = useState<'team' | 'economy' | 'resolutions' | 'settings'>('team');
+  const [activeRightTab, setActiveRightTab] = useState<'team' | 'economy' | 'task_logs' | 'settings'>('team');
+  const [logFilter, setLogFilter] = useState<'weekly' | 'monthly' | 'all'>('weekly');
+  const [logStaffFilter, setLogStaffFilter] = useState<string>('all');
 
   // Login inputs
   const [accessId, setAccessId] = useState('');
@@ -2879,7 +2881,7 @@ export default function UnifiedMeritApp() {
             <div className="relative space-y-6 flex-1 flex-col overflow-hidden">
               {/* Tab Navigation */}
               <div className="grid grid-cols-4 gap-1 bg-[#f4f6f4] border border-[#e1e7e1] rounded-xl p-1 shrink-0">
-                {(['team', 'economy', 'resolutions', 'settings'] as const).map(tab => (
+                {(['team', 'economy', 'task_logs', 'settings'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveRightTab(tab)}
@@ -2887,7 +2889,7 @@ export default function UnifiedMeritApp() {
                       activeRightTab === tab ? 'bg-[#406c58] text-white font-bold font-headline' : 'text-stone-500 hover:text-stone-850'
                     }`}
                   >
-                    {tab}
+                    {tab === 'task_logs' ? 'Task Logs' : tab}
                   </button>
                 ))}
               </div>
@@ -3072,44 +3074,142 @@ export default function UnifiedMeritApp() {
               )}
 
               {/* TAB 3: DISPUTES TRIAGE */}
-              {activeRightTab === 'resolutions' && (
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar animate-fade-in">
+              {activeRightTab === 'task_logs' && (
+                <div className="flex-1 overflow-hidden flex flex-col space-y-3 animate-fade-in">
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Point Disputes Triage</h3>
-                    <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Approve or reject staff point claims</p>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Task Logs</h3>
+                    <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Completed tasks · Points awarded</p>
                   </div>
 
-                  {appeals.filter(a => !a.resolved).map(appeal => (
-                    <div key={appeal.id} className="p-4 bg-white border border-[#e1e7e1] rounded-2xl space-y-3">
-                      <div className="flex items-center gap-3">
-                        <img src={appeal.imgUrl} className="w-8 h-8 rounded-full object-cover" alt="" />
-                        <div>
-                          <h4 className="text-xs font-bold text-stone-850">{appeal.staffName}</h4>
-                          <p className="text-[8px] font-black uppercase text-stone-400 mt-0.5">{appeal.department} · {appeal.taskTitle}</p>
+                  {/* Filters */}
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    {(['weekly', 'monthly', 'all'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setLogFilter(f)}
+                        className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
+                          logFilter === f
+                            ? 'bg-[#406c58] text-white border-[#406c58]'
+                            : 'bg-white text-stone-500 border-[#e1e7e1] hover:border-stone-300'
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                    <select
+                      value={logStaffFilter}
+                      onChange={e => setLogStaffFilter(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border border-[#e1e7e1] bg-white text-stone-600 outline-none cursor-pointer"
+                    >
+                      <option value="all">All Staff</option>
+                      {team.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Task Log Table */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="sticky top-0 bg-[#f4f6f4] z-10">
+                        <tr className="text-[7px] font-black uppercase tracking-widest text-stone-500 border-b border-[#e1e7e1]">
+                          <th className="py-2 px-2">Task</th>
+                          <th className="py-2 px-2">By</th>
+                          <th className="py-2 px-2 text-right">Pts</th>
+                          <th className="py-2 px-2 text-right">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const now = new Date();
+                          const day = now.getDay();
+                          const diffToMon = day === 0 ? -6 : 1 - day;
+                          const monday = new Date(now);
+                          monday.setDate(now.getDate() + diffToMon);
+                          monday.setHours(0, 0, 0, 0);
+                          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                          const activePointConfig = getActivePointConfig(meritConfig);
+
+                          let filtered = tasks.filter(t => t.status === 'completed' && t.completedAt);
+
+                          if (logStaffFilter !== 'all') {
+                            filtered = filtered.filter(t => t.ownerId === logStaffFilter);
+                          }
+
+                          if (logFilter === 'weekly') {
+                            filtered = filtered.filter(t => new Date(t.completedAt!) >= monday);
+                          } else if (logFilter === 'monthly') {
+                            filtered = filtered.filter(t => new Date(t.completedAt!) >= monthStart);
+                          }
+
+                          filtered.sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={4} className="text-center py-8 text-xs text-stone-400 italic">No completed tasks found.</td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map(t => {
+                            const owner = team.find(m => m.id === t.ownerId);
+                            const pc = calculateTaskPoints(t.title, t.note || '', t.elapsedSec ? t.elapsedSec / 60 : 0, activePointConfig, undefined, t.impact as any, t.complexity as any);
+                            const completedDate = new Date(t.completedAt!);
+                            return (
+                              <tr key={t.id} className="border-b border-[#e1e7e1]/40 hover:bg-[#f4f6f4]/50 transition-colors">
+                                <td className="py-2 px-2">
+                                  <span className="text-[10px] font-bold text-stone-800 block truncate max-w-[120px]" title={t.title}>{t.title}</span>
+                                </td>
+                                <td className="py-2 px-2">
+                                  <div className="flex items-center gap-1.5">
+                                    {owner && <img src={owner.imgUrl} className="w-4 h-4 rounded-full object-cover border border-[#e1e7e1]" alt="" />}
+                                    <span className="text-[9px] font-semibold text-stone-600 truncate max-w-[60px]">{owner?.name || 'Unknown'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-mono">{pc.points}</span>
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <span className="text-[8px] font-mono text-stone-500">{completedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+
+                    {/* Summary Footer */}
+                    {(() => {
+                      const now = new Date();
+                      const day = now.getDay();
+                      const diffToMon = day === 0 ? -6 : 1 - day;
+                      const monday = new Date(now);
+                      monday.setDate(now.getDate() + diffToMon);
+                      monday.setHours(0, 0, 0, 0);
+                      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                      const activePointConfig = getActivePointConfig(meritConfig);
+
+                      let filtered = tasks.filter(t => t.status === 'completed' && t.completedAt);
+                      if (logStaffFilter !== 'all') filtered = filtered.filter(t => t.ownerId === logStaffFilter);
+                      if (logFilter === 'weekly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monday);
+                      else if (logFilter === 'monthly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monthStart);
+
+                      const totalPts = filtered.reduce((sum, t) => {
+                        const pc = calculateTaskPoints(t.title, t.note || '', t.elapsedSec ? t.elapsedSec / 60 : 0, activePointConfig, undefined, t.impact as any, t.complexity as any);
+                        return sum + pc.points;
+                      }, 0);
+
+                      return filtered.length > 0 ? (
+                        <div className="mt-3 pt-3 border-t border-[#e1e7e1] flex items-center justify-between">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-stone-500">{filtered.length} task{filtered.length !== 1 ? 's' : ''} completed</span>
+                          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg font-mono">{totalPts} pts</span>
                         </div>
-                      </div>
-                      <p className="text-[10px] text-stone-500 bg-[#f2f5f2] p-2.5 rounded-xl border border-[#e1e7e1] font-medium leading-relaxed">
-                        "{appeal.appealComment}"
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleResolveAppeal(appeal.id, appeal.originalPoints, 'Approved')}
-                          className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.97] active:translate-y-[0.5px] cursor-pointer"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectAppeal(appeal.id, 'Disapproved')}
-                          className="flex-1 py-1.5 bg-rose-55 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.97] active:translate-y-[0.5px] cursor-pointer"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {appeals.filter(a => !a.resolved).length === 0 && (
-                    <p className="text-xs text-stone-450 italic text-center py-6">No pending disputes.</p>
-                  )}
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               )}
 
