@@ -16,7 +16,7 @@ import MacroViewGraph from '@/components/MacroViewGraph';
 import ProfileModal from '@/components/ProfileModal';
 
 // Categories supported for visual grouping (Business Entity Folders)
-const CATEGORIES = ['ECA Rental - E-hailing', 'ECA Rental - Daily Rental', 'ECA Marketing', 'ECA IT R&D'];
+const CATEGORIES = ['ECA IT R&D', 'ECA RENTAL - Daily Rental', 'ECA MARKETING', 'ECA RENTAL - E-hailing'];
 const FUNCTION_TAGS = ['Strategic', 'Operations', 'Marketing', 'Finance'];
 const IMPACT_LEVELS: ImpactLevel[] = ['High', 'Medium', 'Low'];
 const COMPLEXITY_LEVELS: ComplexityLevel[] = ['Low', 'Medium', 'High'];
@@ -209,7 +209,7 @@ export default function UnifiedMeritApp() {
       if (savedCats) {
         const parsed = JSON.parse(savedCats).filter((c: string) => c && c.trim());
         // Auto-clean: remove any legacy categories not in the canonical list
-        const legacyNames = ['ECA HQ', 'Marketing Consultancy', 'Software / R&D', 'ECA Rental - Daily'];
+        const legacyNames = ['ECA HQ', 'Marketing Consultancy', 'Software / R&D', 'ECA Rental - Daily', 'ECA Rental - E-hailing', 'ECA Rental - Daily Rental', 'ECA Marketing'];
         const cleaned = parsed.filter((c: string) => !legacyNames.includes(c));
         // Ensure all canonical categories are present
         const merged = Array.from(new Set([...cleaned, ...CATEGORIES]));
