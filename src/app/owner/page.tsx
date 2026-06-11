@@ -199,7 +199,11 @@ export default function OwnerReconstructedDashboard() {
       const savedCats = localStorage.getItem('boardCategories');
       if (savedCats) {
         const parsed = JSON.parse(savedCats).filter((c: string) => c && c.trim());
-        setCategories(parsed.length > 0 ? parsed : CATEGORIES);
+        const legacyNames = ['ECA HQ', 'Marketing Consultancy', 'Software / R&D', 'ECA Rental - Daily'];
+        const cleaned = parsed.filter((c: string) => !legacyNames.includes(c));
+        const merged = Array.from(new Set([...cleaned, ...CATEGORIES]));
+        setCategories(merged);
+        localStorage.setItem('boardCategories', JSON.stringify(merged));
       } else {
         setCategories(CATEGORIES);
         localStorage.setItem('boardCategories', JSON.stringify(CATEGORIES));
