@@ -144,6 +144,7 @@ export default function OwnerReconstructedDashboard() {
   const [activeRightTab, setActiveRightTab] = useState<'team' | 'economy' | 'task_logs' | 'settings'>('team');
   const [logFilter, setLogFilter] = useState<'weekly' | 'monthly' | 'all'>('weekly');
   const [logStaffFilter, setLogStaffFilter] = useState<string>('all');
+  const [taskLogsExpanded, setTaskLogsExpanded] = useState(false);
 
   // Login inputs
   const [accessId, setAccessId] = useState('');
@@ -2013,7 +2014,15 @@ export default function OwnerReconstructedDashboard() {
         )}
 
         {/* Header Right */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <a
+            href="/"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f4f6f4] hover:bg-[#e8ede8] border border-[#e1e7e1] text-stone-700 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
+            title="Switch to Staff Dashboard"
+          >
+            <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
+            Staff Dashboard
+          </a>
           <div className="hidden sm:flex items-center gap-3 bg-[#f4f6f4] px-4 py-1.5 rounded-xl border border-[#e1e7e1] cursor-pointer hover:bg-[#e8ede8] hover:border-[#c8d5c8] transition-all active:scale-95" onClick={() => setProfileModalOpen(true)} title="Edit Profile">
             <img src={authProfile?.photoUrl} className="w-6 h-6 rounded-lg object-cover border border-stone-200" alt="" />
             <div className="text-left">
@@ -3046,9 +3055,18 @@ export default function OwnerReconstructedDashboard() {
               {/* TAB 3: DISPUTES TRIAGE */}
               {activeRightTab === 'task_logs' && (
                 <div className="flex-1 overflow-hidden flex flex-col space-y-3 animate-fade-in">
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Task Logs</h3>
-                    <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Completed tasks · Points awarded</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Task Logs</h3>
+                      <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Completed tasks · Points awarded</p>
+                    </div>
+                    <button
+                      onClick={() => setTaskLogsExpanded(true)}
+                      className="p-1.5 rounded-lg bg-[#f4f6f4] hover:bg-[#e8ede8] border border-[#e1e7e1] text-stone-600 transition-all cursor-pointer active:scale-95"
+                      title="Expand Task Logs"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">open_in_full</span>
+                    </button>
                   </div>
 
                   {/* Filters */}
@@ -4209,6 +4227,157 @@ export default function OwnerReconstructedDashboard() {
           onUploadAvatar={handleUploadAvatar}
           onDeleteAvatar={handleDeleteAvatar}
         />
+      )}
+
+      {/* Expanded Task Logs Modal */}
+      {taskLogsExpanded && (
+        <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" onClick={() => setTaskLogsExpanded(false)}>
+          <div className="bg-white rounded-3xl border border-[#e1e7e1] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e1e7e1] shrink-0">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest text-[#1a2620] font-headline">Task Logs</h2>
+                <p className="text-[8px] font-black uppercase tracking-widest text-stone-400 mt-0.5">Completed tasks · Points awarded · Full view</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Filters */}
+                <div className="flex gap-1.5">
+                  {(['weekly', 'monthly', 'all'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setLogFilter(f)}
+                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
+                        logFilter === f
+                          ? 'bg-[#406c58] text-white border-[#406c58]'
+                          : 'bg-white text-stone-500 border-[#e1e7e1] hover:border-stone-300'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  value={logStaffFilter}
+                  onChange={e => setLogStaffFilter(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[#e1e7e1] bg-white text-stone-600 outline-none cursor-pointer"
+                >
+                  <option value="all">All Staff</option>
+                  {team.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setTaskLogsExpanded(false)}
+                  className="p-2 rounded-xl bg-[#f4f6f4] hover:bg-stone-100 border border-[#e1e7e1] text-stone-600 transition-all cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Table */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-[#f4f6f4] z-10">
+                  <tr className="text-[8px] font-black uppercase tracking-widest text-stone-500 border-b border-[#e1e7e1]">
+                    <th className="py-2.5 px-3">#</th>
+                    <th className="py-2.5 px-3">Task</th>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Completed By</th>
+                    <th className="py-2.5 px-3 text-right">Points</th>
+                    <th className="py-2.5 px-3 text-right">Completed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const now = new Date();
+                    const day = now.getDay();
+                    const diffToMon = day === 0 ? -6 : 1 - day;
+                    const monday = new Date(now);
+                    monday.setDate(now.getDate() + diffToMon);
+                    monday.setHours(0, 0, 0, 0);
+                    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const activePointConfig = getActivePointConfig(meritConfig);
+
+                    let filtered = tasks.filter(t => t.status === 'completed' && t.completedAt);
+                    if (logStaffFilter !== 'all') filtered = filtered.filter(t => t.ownerId === logStaffFilter);
+                    if (logFilter === 'weekly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monday);
+                    else if (logFilter === 'monthly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monthStart);
+                    filtered.sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime());
+
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="text-center py-12 text-sm text-stone-400 italic">No completed tasks found for this period.</td>
+                        </tr>
+                      );
+                    }
+
+                    return filtered.map((t, idx) => {
+                      const owner = team.find(m => m.id === t.ownerId);
+                      const pc = calculateTaskPoints(t.title, t.note || '', t.elapsedSec ? t.elapsedSec / 60 : 0, activePointConfig, undefined, t.impact as any, t.complexity as any);
+                      const completedDate = new Date(t.completedAt!);
+                      const meta = parseTaskMetadata(t, team);
+                      return (
+                        <tr key={t.id} className="border-b border-[#e1e7e1]/40 hover:bg-[#f4f6f4]/50 transition-colors">
+                          <td className="py-3 px-3 text-[10px] text-stone-400 font-mono">{idx + 1}</td>
+                          <td className="py-3 px-3">
+                            <span className="text-[11px] font-bold text-stone-800 block" title={t.title}>{t.title}</span>
+                            {t.note && <span className="text-[9px] text-stone-400 block truncate max-w-[300px] mt-0.5">{t.note}</span>}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 bg-[#f4f6f4] px-2 py-0.5 rounded border border-[#e1e7e1]">{meta.category || 'Uncategorized'}</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              {owner && <img src={owner.imgUrl} className="w-5 h-5 rounded-full object-cover border border-[#e1e7e1]" alt="" />}
+                              <span className="text-[10px] font-semibold text-stone-700">{owner?.name || 'Unknown'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-mono">{pc.points}</span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <span className="text-[9px] font-mono text-stone-500">{completedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal Footer */}
+            {(() => {
+              const now = new Date();
+              const day = now.getDay();
+              const diffToMon = day === 0 ? -6 : 1 - day;
+              const monday = new Date(now);
+              monday.setDate(now.getDate() + diffToMon);
+              monday.setHours(0, 0, 0, 0);
+              const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+              const activePointConfig = getActivePointConfig(meritConfig);
+
+              let filtered = tasks.filter(t => t.status === 'completed' && t.completedAt);
+              if (logStaffFilter !== 'all') filtered = filtered.filter(t => t.ownerId === logStaffFilter);
+              if (logFilter === 'weekly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monday);
+              else if (logFilter === 'monthly') filtered = filtered.filter(t => new Date(t.completedAt!) >= monthStart);
+
+              const totalPts = filtered.reduce((sum, t) => {
+                const pc = calculateTaskPoints(t.title, t.note || '', t.elapsedSec ? t.elapsedSec / 60 : 0, activePointConfig, undefined, t.impact as any, t.complexity as any);
+                return sum + pc.points;
+              }, 0);
+
+              return filtered.length > 0 ? (
+                <div className="px-6 py-4 border-t border-[#e1e7e1] flex items-center justify-between shrink-0 bg-[#f9faf9]">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-stone-500">{filtered.length} task{filtered.length !== 1 ? 's' : ''} completed</span>
+                  <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-mono">{totalPts} pts total</span>
+                </div>
+              ) : null;
+            })()}
+          </div>
+        </div>
       )}
 
     </div>
