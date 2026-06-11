@@ -15,7 +15,7 @@ import confetti from 'canvas-confetti';
 import MacroViewGraph from '@/components/MacroViewGraph';
 
 // Categories supported for visual grouping (Business Entity Folders)
-const CATEGORIES = ['ECA Rental - Daily', 'ECA Rental - E-hailing', 'Marketing Consultancy', 'Software / R&D', 'ECA HQ'];
+const CATEGORIES = ['ECA Rental - E-hailing', 'ECA Rental - Daily Rental', 'ECA Marketing', 'ECA IT R&D'];
 const FUNCTION_TAGS = ['Strategic', 'Operations', 'Marketing', 'Finance'];
 const IMPACT_LEVELS: ImpactLevel[] = ['High', 'Medium', 'Low'];
 const COMPLEXITY_LEVELS: ComplexityLevel[] = ['Low', 'Medium', 'High'];
@@ -24,59 +24,49 @@ const COMPLEXITY_LEVELS: ComplexityLevel[] = ['Low', 'Medium', 'High'];
 const getCategoryTheme = (folder: string) => {
   const name = (folder || '').toLowerCase();
   
-  if (name.includes('daily')) {
+  if (name.includes('daily rental') || name.includes('daily')) {
     return {
-      border: 'border-l-4 border-l-[#047857] ring-2 ring-[#047857]/10', // Emerald Green
+      border: 'border-l-4 border-l-[#047857] ring-2 ring-[#047857]/10',
       bg: 'bg-[#f0fdf4]',
       text: 'text-[#047857]',
       badgeBg: 'bg-[#dcfce7]',
-      label: 'Daily Rental Fleet',
+      label: 'Domestic Car Rental',
       initials: '🚗'
     };
   }
   if (name.includes('e-hailing') || name.includes('hailing') || name.includes('ehailing')) {
     return {
-      border: 'border-l-4 border-l-[#0d9488] ring-2 ring-[#0d9488]/10', // Teal
+      border: 'border-l-4 border-l-[#0d9488] ring-2 ring-[#0d9488]/10',
       bg: 'bg-[#f0fdfa]',
       text: 'text-[#0d9488]',
       badgeBg: 'bg-[#ccfbf1]',
-      label: 'E-Hailing Fleet',
+      label: 'Grab Driver Fleet',
       initials: '🚖'
     };
   }
-  if (name.includes('consultancy') || name.includes('consulting')) {
+  if (name.includes('marketing') && !name.includes('rental')) {
     return {
-      border: 'border-l-4 border-l-[#b91c1c] ring-2 ring-[#b91c1c]/10', // Terracotta Red
+      border: 'border-l-4 border-l-[#b91c1c] ring-2 ring-[#b91c1c]/10',
       bg: 'bg-[#fef2f2]',
       text: 'text-[#b91c1c]',
       badgeBg: 'bg-[#fee2e2]',
-      label: 'Marketing Consultancy',
+      label: 'Marketing Department',
       initials: '📢'
     };
   }
-  if (name.includes('software') || name.includes('r&d')) {
+  if (name.includes('it r&d') || name.includes('it r\u0026d') || name.includes('software') || name.includes('r&d')) {
     return {
-      border: 'border-l-4 border-l-[#6d28d9] ring-2 ring-[#6d28d9]/10', // Purple
+      border: 'border-l-4 border-l-[#6d28d9] ring-2 ring-[#6d28d9]/10',
       bg: 'bg-[#f5f3ff]',
       text: 'text-[#6d28d9]',
       badgeBg: 'bg-[#ede9fe]',
-      label: 'Software / R&D',
+      label: 'IT & R&D',
       initials: '💻'
-    };
-  }
-  if (name.includes('hq') || name.includes('holding') || name.includes('general')) {
-    return {
-      border: 'border-l-4 border-l-[#a16207] ring-2 ring-[#a16207]/10', // Gold
-      bg: 'bg-[#fef9c3]/15',
-      text: 'text-[#a16207]',
-      badgeBg: 'bg-[#fef9c3]',
-      label: 'HQ Holding Admin',
-      initials: '🏢'
     };
   }
 
   // Default fallback (Forest green)
-  const words = (folder || 'ECA HQ').trim().split(/\s+/);
+  const words = (folder || 'ECA').trim().split(/\s+/);
   const initials = words.length >= 2 
     ? (words[0][0] + (words[1][0] || '')).toUpperCase()
     : words[0].substring(0, Math.min(words[0].length, 2)).toUpperCase();
@@ -95,20 +85,34 @@ const getCategoryTheme = (folder: string) => {
 const autoClassifyTask = (title: string): { category: string, initiative: string } => {
   const t = title.toLowerCase();
   
-  // 1. Classify Category (Business Entity Folder)
-  let category = 'ECA HQ'; // Default fallback
-  if (t.includes('daily') || t.includes('rental - daily') || t.includes('fleet') || t.includes('car rental') || t.includes('weekend promo') || t.includes('fleet maintenance')) {
-    category = 'ECA Rental - Daily';
-  } else if (t.includes('e-hailing') || t.includes('hailing') || t.includes('grab') || t.includes('driver') || t.includes('ehailing')) {
+  let category = 'ECA Rental - Daily Rental';
+  
+  if (t.includes('e-hailing') || t.includes('hailing') || t.includes('grab') || t.includes('driver') || t.includes('ehailing')) {
     category = 'ECA Rental - E-hailing';
-  } else if (t.includes('consultancy') || t.includes('consulting') || t.includes('client') || t.includes('ad copy') || t.includes('campaign')) {
-    category = 'Marketing Consultancy';
-  } else if (t.includes('software') || t.includes('r&d') || t.includes('code') || t.includes('app') || t.includes('api') || t.includes('bug') || t.includes('feature') || t.includes('dev') || t.includes('ui') || t.includes('ux') || t.includes('database') || t.includes('tech') || t.includes('saas')) {
-    category = 'Software / R&D';
+  }
+  else if (t.includes('marketing') || t.includes('ads') || t.includes('tiktok') || t.includes('instagram') || 
+           t.includes('social') || t.includes('content') || t.includes('creative') || t.includes('campaign') || 
+           t.includes('video') || t.includes('post') || t.includes('viral') || t.includes('ad copy') || 
+           t.includes('promo') || t.includes('brand') || t.includes('design') || t.includes('poster') ||
+           t.includes('carousel') || t.includes('reel') || t.includes('photo') || t.includes('shoot')) {
+    category = 'ECA Marketing';
+  }
+  else if (t.includes('software') || t.includes('r&d') || t.includes('code') || t.includes('app') || 
+           t.includes('api') || t.includes('bug') || t.includes('feature') || t.includes('dev') || 
+           t.includes('ui') || t.includes('ux') || t.includes('database') || t.includes('tech') || 
+           t.includes('saas') || t.includes('system') || t.includes('tool') || t.includes('automat') ||
+           t.includes('deploy') || t.includes('server') || t.includes('website') || t.includes('platform') ||
+           t.includes('dashboard') || t.includes('kpi') || t.includes('merit') || t.includes('integration')) {
+    category = 'ECA IT R&D';
+  }
+  else if (t.includes('daily') || t.includes('rental') || t.includes('fleet') || t.includes('car') || 
+           t.includes('vehicle') || t.includes('maintenance') || t.includes('booking') || t.includes('customer') ||
+           t.includes('contract') || t.includes('insurance') || t.includes('return') || t.includes('delivery') ||
+           t.includes('pickup') || t.includes('handover') || t.includes('inspection')) {
+    category = 'ECA Rental - Daily Rental';
   }
 
-  // 2. Classify Initiative (Function Tag)
-  let initiative = 'Operations'; // Default fallback
+  let initiative = 'Operations';
   if (t.includes('marketing') || t.includes('ads') || t.includes('social') || t.includes('viral') || t.includes('post') || t.includes('video') || t.includes('tiktok') || t.includes('instagram') || t.includes('creative') || t.includes('ad ') || t.includes('content') || t.includes('promo')) {
     initiative = 'Marketing';
   } else if (t.includes('finance') || t.includes('bill') || t.includes('invoice') || t.includes('payroll') || t.includes('budget') || t.includes('tax') || t.includes('cost') || t.includes('revenue') || t.includes('price') || t.includes('profit') || t.includes('payment') || t.includes('account')) {
@@ -327,15 +331,21 @@ export default function OwnerReconstructedDashboard() {
       }
     }
 
-    // Map legacy categories to the new 5 business folders
-    const legacyCats = ['Strategic', 'Operations', 'Marketing', 'Finance', 'R&D', 'General'];
-    if (legacyCats.includes(category)) {
-      if (category === 'Strategic') category = 'ECA HQ';
-      else if (category === 'Operations') category = 'ECA Rental - Daily';
-      else if (category === 'Marketing') category = 'Marketing Consultancy';
-      else if (category === 'Finance') category = 'ECA HQ';
-      else if (category === 'R&D') category = 'Software / R&D';
-      else if (category === 'General') category = 'ECA HQ';
+    // Map legacy categories to the new 4 business folders
+    const legacyCats: Record<string, string> = {
+      'Strategic': 'ECA Rental - Daily Rental',
+      'Operations': 'ECA Rental - Daily Rental',
+      'Marketing': 'ECA Marketing',
+      'Finance': 'ECA Rental - Daily Rental',
+      'R&D': 'ECA IT R&D',
+      'General': 'ECA Rental - Daily Rental',
+      'ECA HQ': 'ECA Rental - Daily Rental',
+      'Marketing Consultancy': 'ECA Marketing',
+      'Software / R&D': 'ECA IT R&D',
+      'ECA Rental - Daily': 'ECA Rental - Daily Rental',
+    };
+    if (legacyCats[category]) {
+      category = legacyCats[category];
     }
 
     // Map legacy initiative/objective to the 4 function tags
