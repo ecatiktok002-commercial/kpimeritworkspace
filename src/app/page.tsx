@@ -158,6 +158,7 @@ export default function UnifiedMeritApp() {
   const [authError, setAuthError] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [dashboardViewMode, setDashboardViewMode] = useState<'admin' | 'staff'>('admin');
 
   // --- Core Application Data ---
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -287,6 +288,7 @@ export default function UnifiedMeritApp() {
     }
     
     const savedView = localStorage.getItem('activeView');
+    const savedViewMode = localStorage.getItem('dashboardViewMode') as 'admin' | 'staff' | null;
     
     if (savedLoggedIn && savedProfile) {
       const profileData = JSON.parse(savedProfile);
@@ -294,8 +296,10 @@ export default function UnifiedMeritApp() {
       setAuthProfile(profileData);
       if (profileData.is_manager) {
         setActiveView('manager');
+        setDashboardViewMode(savedViewMode || 'admin');
       } else {
         setActiveView(savedView || 'missions');
+        setDashboardViewMode('staff');
       }
     }
   }, []);
@@ -305,6 +309,7 @@ export default function UnifiedMeritApp() {
     if (authProfile) {
       localStorage.setItem('authProfile', JSON.stringify(authProfile));
       localStorage.setItem('activeView', activeView);
+      localStorage.setItem('dashboardViewMode', dashboardViewMode);
       if (authProfile.is_manager) {
         localStorage.setItem('owner_isLoggedIn', 'true');
         localStorage.setItem('owner_authProfile', JSON.stringify(authProfile));
@@ -314,8 +319,9 @@ export default function UnifiedMeritApp() {
       localStorage.removeItem('activeView');
       localStorage.removeItem('owner_isLoggedIn');
       localStorage.removeItem('owner_authProfile');
+      localStorage.removeItem('dashboardViewMode');
     }
-  }, [isLoggedIn, authProfile, activeView]);
+  }, [isLoggedIn, authProfile, activeView, dashboardViewMode]);
 
   useEffect(() => {
     if (selectedTask) {
@@ -2017,13 +2023,17 @@ export default function UnifiedMeritApp() {
               {authProfile?.is_manager ? (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[9px] bg-[#406c58]/10 border border-[#406c58]/20 text-[#406c58] font-bold px-2.5 py-0.5 rounded-full uppercase">CEO Suite</span>
-                  <a
-                    href="/"
-                    className="text-[9px] bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase cursor-pointer transition-all active:scale-95"
+                  <button
+                    onClick={() => setDashboardViewMode('staff')}
+                    className={`text-[9px] border font-bold px-2.5 py-0.5 rounded-full uppercase cursor-pointer transition-all active:scale-95 ${
+                      dashboardViewMode === 'staff'
+                        ? 'bg-[#406c58] text-white border-[#406c58]'
+                        : 'bg-stone-100 border-stone-200 text-stone-600 hover:bg-stone-200'
+                    }`}
                     title="Switch to Staff Dashboard View"
                   >
                     Staff Dashboard
-                  </a>
+                  </button>
                 </div>
               ) : (
                 <span className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase">Staff Dashboard</span>
@@ -2034,7 +2044,7 @@ export default function UnifiedMeritApp() {
         </div>
 
         {/* Dynamic Navigation Tabs for Staff */}
-        {!authProfile?.is_manager && (
+        {(!authProfile?.is_manager || dashboardViewMode === 'staff') && (
           <nav className="hidden md:flex bg-[#f4f6f4] p-1 rounded-xl border border-[#e1e7e1] gap-1">
             {['missions', 'training', 'rewards', 'leaderboard'].map(tab => (
               <button
@@ -2053,14 +2063,27 @@ export default function UnifiedMeritApp() {
         {/* Header Right */}
         <div className="flex items-center gap-3">
           {authProfile?.is_manager && (
-            <a
-              href="/owner"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f4f6f4] hover:bg-[#e8ede8] border border-[#e1e7e1] text-stone-700 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
-              title="Switch to Command Center"
-            >
-              <span className="material-symbols-outlined text-[14px]">shield_person</span>
-              Command Center
-            </a>
+            <>
+              {dashboardViewMode === 'staff' ? (
+                <button
+                  onClick={() => setDashboardViewMode('admin')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#406c58] hover:bg-[#335746] text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
+                  title="Switch to Command Center"
+                >
+                  <span className="material-symbols-outlined text-[14px]">shield_person</span>
+                  Command Center
+                </button>
+              ) : (
+                <button
+                  onClick={() => setDashboardViewMode('staff')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f4f6f4] hover:bg-[#e8ede8] border border-[#e1e7e1] text-stone-700 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
+                  title="Switch to Staff Dashboard"
+                >
+                  <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
+                  Staff Dashboard
+                </button>
+              )}
+            </>
           )}
           <div className="hidden sm:flex items-center gap-3 bg-[#f4f6f4] px-4 py-1.5 rounded-xl border border-[#e1e7e1] cursor-pointer hover:bg-[#e8ede8] hover:border-[#c8d5c8] transition-all active:scale-95" onClick={() => setProfileModalOpen(true)} title="Edit Profile">
             <img src={authProfile?.photoUrl} className="w-6 h-6 rounded-lg object-cover border border-stone-200" alt="" />
@@ -2099,7 +2122,7 @@ export default function UnifiedMeritApp() {
       {/* ──────────────────────────────────────────────────────────────────────────────────────────────────────────
           MAIN WORKSPACE CANVAS (MANAGER VIEW)
       ────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
-      {authProfile?.is_manager && (
+      {authProfile?.is_manager && dashboardViewMode === 'admin' && (
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 p-6 h-[calc(100vh-80px)] overflow-hidden">
           
           {/* COLUMN 1: OBSIDIAN EXPLORER SIDEBAR (xl:col-span-3) */}
@@ -3386,7 +3409,7 @@ export default function UnifiedMeritApp() {
       {/* ──────────────────────────────────────────────────────────────────────────────────────────────────────────
           MAIN WORKSPACE CANVAS (STAFF VIEW)
       ────────────────────────────────────────────────────────────────────────────────────────────────────────── */}
-      {!authProfile?.is_manager && (
+      {(!authProfile?.is_manager || dashboardViewMode === 'staff') && (
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 p-6 h-[calc(100vh-80px)] overflow-hidden">
           
           {/* COLUMN 1: PERFORMANCE SUMMARY & MODULES (3/12) */}
