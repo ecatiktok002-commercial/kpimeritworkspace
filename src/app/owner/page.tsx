@@ -13,6 +13,7 @@ import { calculateTaskPoints, simulateAIAssessment } from '@/lib/taskEngine';
 import { assessTaskViaEdge } from '@/lib/assessTask';
 import confetti from 'canvas-confetti';
 import MacroViewGraph from '@/components/MacroViewGraph';
+import ProfileModal from '@/components/ProfileModal';
 
 // Categories supported for visual grouping (Business Entity Folders)
 const CATEGORIES = ['ECA Rental - E-hailing', 'ECA Rental - Daily Rental', 'ECA Marketing', 'ECA IT R&D'];
@@ -147,6 +148,7 @@ export default function OwnerReconstructedDashboard() {
   const [passcode, setPasscode] = useState('');
   const [authError, setAuthError] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // --- Core Application Data ---
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -720,6 +722,76 @@ export default function OwnerReconstructedDashboard() {
     setAuthProfile(null);
     localStorage.removeItem('owner_isLoggedIn');
     localStorage.removeItem('owner_authProfile');
+  };
+
+  // --- Profile Avatar Upload / Delete / Save ---
+  const handleUploadAvatar = async (file: File): Promise<string | null> => {
+    if (!authProfile) return null;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `avatars/${authProfile.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const dataUrl = reader.result as string;
+            await supabase.from('profiles').update({ photo_url: dataUrl }).eq('id', authProfile.id);
+            setAuthProfile(prev => prev ? { ...prev, photoUrl: dataUrl } : null);
+            resolve(dataUrl);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = urlData?.publicUrl;
+      if (publicUrl) {
+        await supabase.from('profiles').update({ photo_url: publicUrl }).eq('id', authProfile.id);
+        setAuthProfile(prev => prev ? { ...prev, photoUrl: publicUrl } : null);
+      }
+      return publicUrl || null;
+    } catch (err) {
+      console.error('Avatar upload failed:', err);
+      return null;
+    }
+  };
+
+  const handleDeleteAvatar = async (url: string) => {
+    if (!authProfile) return;
+    try {
+      const fallbackUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${authProfile.id}`;
+      await supabase.from('profiles').update({ photo_url: fallbackUrl }).eq('id', authProfile.id);
+      setAuthProfile(prev => prev ? { ...prev, photoUrl: fallbackUrl } : null);
+    } catch (err) {
+      console.error('Avatar delete failed:', err);
+    }
+  };
+
+  const handleSaveProfile = async (profileData: any) => {
+    if (!authProfile) return;
+    try {
+      const updates: Record<string, string> = {};
+      if (profileData.name) updates.full_name = profileData.name;
+      if (profileData.department !== undefined) updates.department = profileData.department;
+      if (profileData.designation) updates.designation = profileData.designation;
+      if (profileData.photoUrl) updates.photo_url = profileData.photoUrl;
+
+      await supabase.from('profiles').update(updates).eq('id', authProfile.id);
+      setAuthProfile(prev => prev ? {
+        ...prev,
+        name: profileData.name || prev.name,
+        full_name: profileData.name || prev.full_name,
+        department: profileData.department ?? prev.department,
+        designation: profileData.designation || prev.designation,
+        photoUrl: profileData.photoUrl || prev.photoUrl,
+      } : null);
+      setProfileModalOpen(false);
+      showAlert('Profile updated successfully.');
+    } catch (err) {
+      console.error('Profile save failed:', err);
+    }
   };
 
   // --- AI Assessment Debounce inside modal ---
@@ -1900,7 +1972,7 @@ export default function OwnerReconstructedDashboard() {
 
         {/* Header Right */}
         <div className="flex items-center gap-6">
-          <div className="hidden sm:flex items-center gap-3 bg-[#f4f6f4] px-4 py-1.5 rounded-xl border border-[#e1e7e1]">
+          <div className="hidden sm:flex items-center gap-3 bg-[#f4f6f4] px-4 py-1.5 rounded-xl border border-[#e1e7e1] cursor-pointer hover:bg-[#e8ede8] hover:border-[#c8d5c8] transition-all active:scale-95" onClick={() => setProfileModalOpen(true)} title="Edit Profile">
             <img src={authProfile?.photoUrl} className="w-6 h-6 rounded-lg object-cover border border-stone-200" alt="" />
             <div className="text-left">
               <p className="text-xs font-bold text-stone-800 leading-none">{authProfile?.full_name}</p>
@@ -3965,6 +4037,25 @@ export default function OwnerReconstructedDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Profile Modal */}
+      {authProfile && (
+        <ProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          profile={{
+            ...authProfile,
+            imgUrl: authProfile.photoUrl,
+            name: authProfile.full_name,
+            role: authProfile.designation,
+            monthPoints: 0,
+            tier: 1,
+          }}
+          onSave={handleSaveProfile}
+          onUploadAvatar={handleUploadAvatar}
+          onDeleteAvatar={handleDeleteAvatar}
+        />
       )}
 
     </div>
