@@ -1842,8 +1842,13 @@ export default function OwnerReconstructedDashboard() {
 
   const weeklyPoints = useMemo(() => {
     const finishedLogs = activityLog.filter(a => a.staffId === authProfile?.id && a.type === 'points_earned');
-    return finishedLogs.reduce((sum, log) => sum + (log.points || 0), 0);
-  }, [activityLog, authProfile]);
+    const fromLogs = finishedLogs.reduce((sum, log) => sum + (log.points || 0), 0);
+    if (fromLogs === 0) {
+      const member = team.find(t => t.id === authProfile?.id);
+      return member?.monthPoints || 0;
+    }
+    return fromLogs;
+  }, [activityLog, authProfile, team]);
 
   const weeklyEfficiency = useMemo(() => {
     const finishedLogs = activityLog.filter(a => a.staffId === authProfile?.id && a.type === 'points_earned' && a.efficiencyScore !== undefined);
@@ -2128,7 +2133,7 @@ export default function OwnerReconstructedDashboard() {
 
                       {/* Folder Tasks list (Files) */}
                       {isExpanded && (
-                        <div className="pl-6 space-y-0.5 border-l border-stone-200 ml-4 pb-1">
+                        <div className="pl-6 space-y-0.5 border-l border-stone-200 ml-4 pb-1 max-h-[220px] overflow-y-auto thin-scrollbar">
                           {sortedFolderTasks.map(task => {
                             const isSelected = selectedTask?.id === task.id;
                             const isCompleted = task.status === 'completed';
@@ -2834,10 +2839,7 @@ export default function OwnerReconstructedDashboard() {
                             </div>
                             
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${efficiencyColor}`}>
-                              Points: {(() => {
-                                const memberLogs = activityLog.filter(a => a.staffId === member.id && a.type === 'points_earned');
-                                return memberLogs.reduce((sum, log) => sum + (log.points || 0), 0);
-                              })()}
+                              Points: {member.monthPoints || 0}
                             </span>
                           </div>
 
