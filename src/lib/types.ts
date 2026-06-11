@@ -49,6 +49,8 @@ export interface Task {
   sentinelReminder?: boolean;
   isAutoCompleted?: boolean;
   completedAt?: string;
+  category?: string;
+  initiative?: string;
 }
 
 export interface TaskDefinition {
@@ -101,6 +103,11 @@ export interface OrganizationConfig {
   autoAssignments: {
     [key: string]: { // Key could be "Intern-Marketing"
       tasks: string[];
+    }
+  };
+  departments?: {
+    [deptName: string]: {
+      jobScope: string;
     }
   };
 }

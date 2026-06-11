@@ -129,11 +129,11 @@ interface TaskMetadata {
   initiative: string;
 }
 
-export default function UnifiedMeritApp() {
+export default function OwnerReconstructedDashboard() {
   // --- Auth & Navigation ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authProfile, setAuthProfile] = useState<UserAuthProfile | null>(null);
-  const [activeView, setActiveView] = useState('missions'); // staff views: missions, training, rewards, leaderboard
+  const [activeView, setActiveView] = useState('manager'); // owner page only uses manager view
   const [managerSubView, setManagerSubView] = useState<'board' | 'disputes' | 'economy' | 'settings'>('board');
   const [activeBoardTab, setActiveBoardTab] = useState<'kanban' | 'matrix'>('kanban');
   const [activeRightTab, setActiveRightTab] = useState<'team' | 'economy' | 'resolutions' | 'settings'>('team');
@@ -253,32 +253,30 @@ export default function UnifiedMeritApp() {
 
   // --- Session persistence ---
   useEffect(() => {
-    const savedLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const savedProfile = localStorage.getItem('authProfile');
-    const savedView = localStorage.getItem('activeView');
+    const savedLoggedIn = localStorage.getItem('owner_isLoggedIn') === 'true';
+    const savedProfile = localStorage.getItem('owner_authProfile');
     
     if (savedLoggedIn && savedProfile) {
       const profileData = JSON.parse(savedProfile);
-      setIsLoggedIn(true);
-      setAuthProfile(profileData);
       if (profileData.is_manager) {
+        setIsLoggedIn(true);
+        setAuthProfile(profileData);
         setActiveView('manager');
       } else {
-        setActiveView(savedView || 'missions');
+        localStorage.removeItem('owner_isLoggedIn');
+        localStorage.removeItem('owner_authProfile');
       }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('isLoggedIn', isLoggedIn.toString());
+    localStorage.setItem('owner_isLoggedIn', isLoggedIn.toString());
     if (authProfile) {
-      localStorage.setItem('authProfile', JSON.stringify(authProfile));
-      localStorage.setItem('activeView', activeView);
+      localStorage.setItem('owner_authProfile', JSON.stringify(authProfile));
     } else {
-      localStorage.removeItem('authProfile');
-      localStorage.removeItem('activeView');
+      localStorage.removeItem('owner_authProfile');
     }
-  }, [isLoggedIn, authProfile, activeView]);
+  }, [isLoggedIn, authProfile]);
 
   useEffect(() => {
     if (selectedTask) {
@@ -675,6 +673,11 @@ export default function UnifiedMeritApp() {
         return;
       }
 
+      if (!data.is_manager) {
+        setAuthError('Access Denied. CEO Suite requires workspace administrative clearance.');
+        return;
+      }
+
       const userProfile: UserAuthProfile = {
         id: data.id,
         access_id: data.access_id,
@@ -689,11 +692,7 @@ export default function UnifiedMeritApp() {
 
       setIsLoggedIn(true);
       setAuthProfile(userProfile);
-      if (data.is_manager) {
-        setActiveView('manager');
-      } else {
-        setActiveView('missions');
-      }
+      setActiveView('manager');
       showAlert(`Welcome, ${data.full_name}.`);
     } catch (err) {
       setAuthError('Authentication anomaly.');
@@ -703,9 +702,8 @@ export default function UnifiedMeritApp() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setAuthProfile(null);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('authProfile');
-    localStorage.removeItem('activeView');
+    localStorage.removeItem('owner_isLoggedIn');
+    localStorage.removeItem('owner_authProfile');
   };
 
   // --- AI Assessment Debounce inside modal ---

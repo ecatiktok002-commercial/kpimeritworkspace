@@ -90,7 +90,24 @@ export const SEED_MERIT_CONFIG: MeritConfig = {
 export const SEED_ORG_CONFIG: OrganizationConfig = {
   workspaceName: 'Merit Organization',
   defaultDesignation: 'Staff',
-  autoAssignments: {}
+  autoAssignments: {},
+  departments: {
+    'Operations': {
+      jobScope: '1. Perform daily car rental fleet checklist (refueling, cleaning, inspection).\n2. Coordinate client vehicle handovers.\n3. Log and report vehicle maintenance issues.'
+    },
+    'Marketing': {
+      jobScope: '1. Create and schedule daily short-form TikTok promotion scripts and videos.\n2. Review and optimize consultancy ad campaigns.\n3. Track customer conversion and referral metrics.'
+    },
+    'Software': {
+      jobScope: '1. Monitor production server alerts and error logs.\n2. Execute routine database checks.\n3. Implement features according to active project blueprints.'
+    },
+    'Finance': {
+      jobScope: '1. Reconcile daily rental transactions.\n2. Process incoming contractor invoices.\n3. Prepare weekly profit & loss division reports.'
+    },
+    'Strategic': {
+      jobScope: '1. Align with business unit leaders on quarterly objectives.\n2. Review holding company cash flow allocations.'
+    }
+  }
 };
 
 // ═══════════════════════════════════════════
