@@ -275,8 +275,17 @@ export default function UnifiedMeritApp() {
 
   // --- Session persistence ---
   useEffect(() => {
-    const savedLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const savedProfile = localStorage.getItem('authProfile');
+    let savedLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    let savedProfile = localStorage.getItem('authProfile');
+    
+    // Check owner keys as fallback for seamless switching
+    if (!savedLoggedIn || !savedProfile) {
+      if (localStorage.getItem('owner_isLoggedIn') === 'true' && localStorage.getItem('owner_authProfile')) {
+        savedLoggedIn = true;
+        savedProfile = localStorage.getItem('owner_authProfile');
+      }
+    }
+    
     const savedView = localStorage.getItem('activeView');
     
     if (savedLoggedIn && savedProfile) {
@@ -296,9 +305,15 @@ export default function UnifiedMeritApp() {
     if (authProfile) {
       localStorage.setItem('authProfile', JSON.stringify(authProfile));
       localStorage.setItem('activeView', activeView);
+      if (authProfile.is_manager) {
+        localStorage.setItem('owner_isLoggedIn', 'true');
+        localStorage.setItem('owner_authProfile', JSON.stringify(authProfile));
+      }
     } else {
       localStorage.removeItem('authProfile');
       localStorage.removeItem('activeView');
+      localStorage.removeItem('owner_isLoggedIn');
+      localStorage.removeItem('owner_authProfile');
     }
   }, [isLoggedIn, authProfile, activeView]);
 

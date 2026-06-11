@@ -266,8 +266,19 @@ export default function OwnerReconstructedDashboard() {
 
   // --- Session persistence ---
   useEffect(() => {
-    const savedLoggedIn = localStorage.getItem('owner_isLoggedIn') === 'true';
-    const savedProfile = localStorage.getItem('owner_authProfile');
+    let savedLoggedIn = localStorage.getItem('owner_isLoggedIn') === 'true';
+    let savedProfile = localStorage.getItem('owner_authProfile');
+    
+    // Check main keys as fallback for seamless switching
+    if (!savedLoggedIn || !savedProfile) {
+      if (localStorage.getItem('isLoggedIn') === 'true' && localStorage.getItem('authProfile')) {
+        const parsed = JSON.parse(localStorage.getItem('authProfile') || '{}');
+        if (parsed.is_manager) {
+          savedLoggedIn = true;
+          savedProfile = localStorage.getItem('authProfile');
+        }
+      }
+    }
     
     if (savedLoggedIn && savedProfile) {
       const profileData = JSON.parse(savedProfile);
@@ -286,8 +297,14 @@ export default function OwnerReconstructedDashboard() {
     localStorage.setItem('owner_isLoggedIn', isLoggedIn.toString());
     if (authProfile) {
       localStorage.setItem('owner_authProfile', JSON.stringify(authProfile));
+      if (authProfile.is_manager) {
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('authProfile', JSON.stringify(authProfile));
+      }
     } else {
       localStorage.removeItem('owner_authProfile');
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('authProfile');
     }
   }, [isLoggedIn, authProfile]);
 
