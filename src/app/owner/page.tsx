@@ -502,7 +502,8 @@ export default function OwnerReconstructedDashboard() {
         const dbCategories = mappedTasks.map(t => parseTaskMetadata(t, teamList).category);
         const savedCats = typeof window !== 'undefined' ? localStorage.getItem('boardCategories') : null;
         const currentCats = savedCats ? JSON.parse(savedCats).filter((c: string) => c && c.trim()) : CATEGORIES;
-        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim());
+        const deletedCats = JSON.parse(localStorage.getItem('deletedCategories') || '[]');
+        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim() && !deletedCats.includes(c));
         setCategories(uniqueCats.length > 0 ? uniqueCats : CATEGORIES);
         if (typeof window !== 'undefined') {
           localStorage.setItem('boardCategories', JSON.stringify(uniqueCats));
@@ -1452,11 +1453,19 @@ export default function OwnerReconstructedDashboard() {
   };
 
   const handleDeleteCategory = async (nameToDelete: string) => {
-    if (nameToDelete === 'ECA HQ') {
-      showAlert('Cannot delete default ECA HQ category.', 'error');
+    const protectedCats = CATEGORIES;
+    if (protectedCats.includes(nameToDelete)) {
+      showAlert('Cannot delete a core business category.', 'error');
       return;
     }
-    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to the "ECA HQ" category.`)) return;
+    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to "${protectedCats[0]}".`)) return;
+
+    // Track deleted categories so fetchData won't re-add them
+    const deletedCats = JSON.parse(localStorage.getItem('deletedCategories') || '[]');
+    if (!deletedCats.includes(nameToDelete)) {
+      deletedCats.push(nameToDelete);
+      localStorage.setItem('deletedCategories', JSON.stringify(deletedCats));
+    }
 
     setCategories(prev => {
       const updated = prev.filter(c => c !== nameToDelete);
@@ -1466,13 +1475,15 @@ export default function OwnerReconstructedDashboard() {
       return updated;
     });
 
+    // Reassign affected tasks to first canonical category
+    const targetCategory = protectedCats[0];
     const affectedTasks = tasks.filter(t => parseTaskMetadata(t, team).category === nameToDelete);
     if (affectedTasks.length > 0) {
-      showAlert(`Re-aligning ${affectedTasks.length} tasks to ECA HQ...`, 'info');
+      showAlert(`Re-aligning ${affectedTasks.length} tasks to ${targetCategory}...`, 'info');
       for (const t of affectedTasks) {
         const init = parseTaskMetadata(t, team).initiative;
         const cleanNote = getCleanNote(t.note);
-        const updatedNote = formatNoteWithMetadata(cleanNote, 'ECA HQ', init);
+        const updatedNote = formatNoteWithMetadata(cleanNote, targetCategory, init);
         await supabase.from('tasks').update({ note: updatedNote }).eq('id', t.id);
       }
     }
@@ -2323,8 +2334,9 @@ export default function OwnerReconstructedDashboard() {
                         return matchFolder && matchTag;
                       });
 
+                      const queuedTasks = folderAllTasks.filter(t => t.status === 'queued');
                       const ongoingTasks = folderAllTasks.filter(t => t.status === 'running' || t.status === 'paused');
-                      const pendingCount = folderAllTasks.filter(t => t.status === 'queued').length;
+                      const activeTasks = [...ongoingTasks, ...queuedTasks]; // Show both ongoing AND queued
                       const completedCount = folderAllTasks.filter(t => t.status === 'completed').length;
 
                       return (
@@ -2385,8 +2397,8 @@ export default function OwnerReconstructedDashboard() {
 
                             {/* Ongoing Tasks List */}
                             <div className="max-h-[240px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-                              {ongoingTasks.length > 0 ? (
-                                ongoingTasks.map(task => {
+                              {activeTasks.length > 0 ? (
+                                activeTasks.map(task => {
                                   // Find owner details
                                   const owner = team.find(m => m.id === task.ownerId);
                                   const workflowTotal = task.workflow?.length || 0;
@@ -2408,7 +2420,8 @@ export default function OwnerReconstructedDashboard() {
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-start gap-2 min-w-0 flex-1">
                                           <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                                            task.status === 'running' ? 'bg-amber-500 animate-pulse' : 'bg-stone-450'
+                                            task.status === 'running' ? 'bg-amber-500 animate-pulse' : 
+                                            task.status === 'queued' ? 'bg-blue-400' : 'bg-stone-450'
                                           }`} />
                                           <div className="min-w-0 flex-1">
                                             <span className="text-[11px] font-bold text-stone-850 block leading-tight truncate group-hover/taskitem:text-[#406c58] transition-colors">
@@ -2417,7 +2430,7 @@ export default function OwnerReconstructedDashboard() {
                                           </div>
                                         </div>
                                         
-                                        {/* Monospace Timer or Paused Badge */}
+                                        {/* Monospace Timer or Status Badge */}
                                         <div className="shrink-0 flex items-center gap-1.5">
                                           {task.status === 'running' ? (
                                             <div className="flex items-center gap-1">
@@ -2429,6 +2442,10 @@ export default function OwnerReconstructedDashboard() {
                                                 {fmt(task.elapsedSec)}
                                               </span>
                                             </div>
+                                          ) : task.status === 'queued' ? (
+                                            <span className="text-[7px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-headline leading-none">
+                                              QUEUED
+                                            </span>
                                           ) : (
                                             <span className="text-[7px] font-black uppercase tracking-wider text-stone-550 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded font-headline leading-none">
                                               PAUSED
@@ -2479,12 +2496,16 @@ export default function OwnerReconstructedDashboard() {
                           {/* Business Card Footer metrics */}
                           <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-stone-500 border-t border-[#e1e7e1]/45 pt-2 shrink-0 font-headline">
                             <span className="flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-stone-400" />
-                              {pendingCount} Pending Task{pendingCount !== 1 ? 's' : ''}
+                              <span className="w-1 h-1 rounded-full bg-blue-400" />
+                              {queuedTasks.length} Queued
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-amber-500" />
+                              {ongoingTasks.length} Active
                             </span>
                             <span className="flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                              {completedCount} Completed
+                              {completedCount} Done
                             </span>
                           </div>
                         </div>

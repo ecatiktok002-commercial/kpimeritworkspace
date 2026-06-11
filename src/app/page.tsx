@@ -513,7 +513,8 @@ export default function UnifiedMeritApp() {
         const dbCategories = mappedTasks.map(t => parseTaskMetadata(t, teamList).category);
         const savedCats = typeof window !== 'undefined' ? localStorage.getItem('boardCategories') : null;
         const currentCats = savedCats ? JSON.parse(savedCats).filter((c: string) => c && c.trim()) : CATEGORIES;
-        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim());
+        const deletedCats = JSON.parse(localStorage.getItem('deletedCategories') || '[]');
+        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim() && !deletedCats.includes(c));
         setCategories(uniqueCats.length > 0 ? uniqueCats : CATEGORIES);
         if (typeof window !== 'undefined') {
           localStorage.setItem('boardCategories', JSON.stringify(uniqueCats.length > 0 ? uniqueCats : CATEGORIES));
@@ -1466,12 +1467,18 @@ export default function UnifiedMeritApp() {
   };
 
   const handleDeleteCategory = async (nameToDelete: string) => {
-    if (categories.length <= 1) {
-      showAlert('Cannot delete the last remaining category.', 'error');
+    const protectedCats = CATEGORIES;
+    if (protectedCats.includes(nameToDelete)) {
+      showAlert('Cannot delete a core business category.', 'error');
       return;
     }
-    const fallbackCategory = categories.find(c => c !== nameToDelete) || 'ECA HQ';
-    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to "${fallbackCategory}".`)) return;
+    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to "${protectedCats[0]}".`)) return;
+
+    const deletedCats = JSON.parse(localStorage.getItem('deletedCategories') || '[]');
+    if (!deletedCats.includes(nameToDelete)) {
+      deletedCats.push(nameToDelete);
+      localStorage.setItem('deletedCategories', JSON.stringify(deletedCats));
+    }
 
     setCategories(prev => {
       const updated = prev.filter(c => c !== nameToDelete);
@@ -1481,14 +1488,14 @@ export default function UnifiedMeritApp() {
       return updated;
     });
 
+    const targetCategory = protectedCats[0];
     const affectedTasks = tasks.filter(t => parseTaskMetadata(t, team).category === nameToDelete);
     if (affectedTasks.length > 0) {
-      const fallbackCat = categories.find(c => c !== nameToDelete) || 'ECA HQ';
-      showAlert(`Re-aligning ${affectedTasks.length} tasks to ${fallbackCat}...`, 'info');
+      showAlert(`Re-aligning ${affectedTasks.length} tasks to ${targetCategory}...`, 'info');
       for (const t of affectedTasks) {
         const init = parseTaskMetadata(t, team).initiative;
         const cleanNote = getCleanNote(t.note);
-        const updatedNote = formatNoteWithMetadata(cleanNote, fallbackCat, init);
+        const updatedNote = formatNoteWithMetadata(cleanNote, targetCategory, init);
         await supabase.from('tasks').update({ note: updatedNote }).eq('id', t.id);
       }
     }
@@ -2345,12 +2352,10 @@ export default function UnifiedMeritApp() {
                         return matchFolder && matchTag && matchOwner;
                       });
 
-                      // When a department filter is active, show ALL statuses; otherwise only ongoing
-                      const showAllStatuses = selectedFunctionTag !== 'All';
+                      // Always show queued + ongoing tasks on the card
                       const queuedTasks = folderAllTasks.filter(t => t.status === 'queued');
                       const ongoingTasks = folderAllTasks.filter(t => t.status === 'running' || t.status === 'paused');
                       const completedTasks = folderAllTasks.filter(t => t.status === 'completed');
-                      const pendingCount = queuedTasks.length;
 
                       return (
                         <div 
@@ -2410,8 +2415,8 @@ export default function UnifiedMeritApp() {
 
                             {/* Task List: show ALL statuses when department filter is active */}
                             <div className="max-h-[240px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-                              {/* Queued Tasks (shown when department filter is active) */}
-                              {showAllStatuses && queuedTasks.length > 0 && (
+                              {/* Queued Tasks - always shown */}
+                              {queuedTasks.length > 0 && (
                                 <>
                                   <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">📋 Queued ({queuedTasks.length})</p>
                                   {queuedTasks.map(task => {
@@ -2435,7 +2440,7 @@ export default function UnifiedMeritApp() {
                               {/* Ongoing Tasks (always shown) */}
                               {ongoingTasks.length > 0 && (
                                 <>
-                                  {showAllStatuses && <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">⚡ Active ({ongoingTasks.length})</p>}
+                                  <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">⚡ Active ({ongoingTasks.length})</p>
                                   {ongoingTasks.map(task => {
                                     const owner = team.find(m => m.id === task.ownerId);
                                     const workflowTotal = task.workflow?.length || 0;
@@ -2506,8 +2511,8 @@ export default function UnifiedMeritApp() {
                                 </>
                               )}
 
-                              {/* Completed Tasks (shown when department filter is active) */}
-                              {showAllStatuses && completedTasks.length > 0 && (
+                              {/* Completed Tasks - hidden from card view */}
+                              {false && completedTasks.length > 0 && (
                                 <>
                                   <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">✅ Completed ({completedTasks.length})</p>
                                   {completedTasks.map(task => {
@@ -2529,7 +2534,7 @@ export default function UnifiedMeritApp() {
                               )}
 
                               {/* Empty State */}
-                              {ongoingTasks.length === 0 && (!showAllStatuses || (queuedTasks.length === 0 && completedTasks.length === 0)) && (
+                              {ongoingTasks.length === 0 && queuedTasks.length === 0 && (
                                 <div className="py-5 text-center border border-dashed border-[#e1e7e1] rounded-xl bg-white/40">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-stone-450 flex items-center justify-center gap-1.5">
                                     <span className="material-symbols-outlined text-[10px] text-emerald-500 font-bold">check_circle</span>
@@ -2540,15 +2545,18 @@ export default function UnifiedMeritApp() {
                             </div>
                           </div>
 
-                          {/* Business Card Footer metrics */}
                           <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-stone-500 border-t border-[#e1e7e1]/45 pt-2 shrink-0 font-headline">
                             <span className="flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-stone-400" />
-                              {pendingCount} Queued
+                              <span className="w-1 h-1 rounded-full bg-blue-400" />
+                              {queuedTasks.length} Queued
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-amber-500" />
+                              {ongoingTasks.length} Active
                             </span>
                             <span className="flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                              {completedTasks.length} Completed
+                              {completedTasks.length} Done
                             </span>
                           </div>
                         </div>
