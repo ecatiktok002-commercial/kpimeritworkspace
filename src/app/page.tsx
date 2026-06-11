@@ -177,6 +177,7 @@ export default function UnifiedMeritApp() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [selectedFunctionTag, setSelectedFunctionTag] = useState<string>('All');
+  const [ceoViewActive, setCeoViewActive] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -194,7 +195,7 @@ export default function UnifiedMeritApp() {
 
       const savedCats = localStorage.getItem('boardCategories');
       if (savedCats) {
-        const parsed = JSON.parse(savedCats).filter((c: string) => CATEGORIES.includes(c));
+        const parsed = JSON.parse(savedCats).filter((c: string) => c && c.trim());
         setCategories(parsed.length > 0 ? parsed : CATEGORIES);
       } else {
         setCategories(CATEGORIES);
@@ -486,10 +487,12 @@ export default function UnifiedMeritApp() {
         }
 
         const dbCategories = mappedTasks.map(t => parseTaskMetadata(t, teamList).category);
-        const uniqueCats = Array.from(new Set([...dbCategories, ...CATEGORIES])).filter(c => CATEGORIES.includes(c));
-        setCategories(uniqueCats);
+        const savedCats = typeof window !== 'undefined' ? localStorage.getItem('boardCategories') : null;
+        const currentCats = savedCats ? JSON.parse(savedCats).filter((c: string) => c && c.trim()) : CATEGORIES;
+        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim());
+        setCategories(uniqueCats.length > 0 ? uniqueCats : CATEGORIES);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('boardCategories', JSON.stringify(uniqueCats));
+          localStorage.setItem('boardCategories', JSON.stringify(uniqueCats.length > 0 ? uniqueCats : CATEGORIES));
         }
 
         if (profilesData) {
@@ -817,7 +820,9 @@ export default function UnifiedMeritApp() {
       finalComplexity
     );
 
-    const formattedNote = formatNoteWithMetadata(taskNote, taskCategory, activeInitiative);
+    // Auto-classify the function tag from the task title instead of using the manual dropdown
+    const autoClassified = autoClassifyTask(taskTitle);
+    const formattedNote = formatNoteWithMetadata(taskNote, taskCategory, autoClassified.initiative);
     const taskId = editingTask ? editingTask.id : crypto.randomUUID();
     const finalOwner = taskOwner || authProfile?.id || '00000000-0000-0000-0000-000000000000';
 
@@ -1366,11 +1371,12 @@ export default function UnifiedMeritApp() {
   };
 
   const handleDeleteCategory = async (nameToDelete: string) => {
-    if (nameToDelete === 'ECA HQ') {
-      showAlert('Cannot delete default ECA HQ category.', 'error');
+    if (categories.length <= 1) {
+      showAlert('Cannot delete the last remaining category.', 'error');
       return;
     }
-    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to the "ECA HQ" category.`)) return;
+    const fallbackCategory = categories.find(c => c !== nameToDelete) || 'ECA HQ';
+    if (!confirm(`Are you sure you want to delete the category "${nameToDelete}"?\nAll its tasks will be re-assigned to "${fallbackCategory}".`)) return;
 
     setCategories(prev => {
       const updated = prev.filter(c => c !== nameToDelete);
@@ -1382,11 +1388,12 @@ export default function UnifiedMeritApp() {
 
     const affectedTasks = tasks.filter(t => parseTaskMetadata(t, team).category === nameToDelete);
     if (affectedTasks.length > 0) {
-      showAlert(`Re-aligning ${affectedTasks.length} tasks to ECA HQ...`, 'info');
+      const fallbackCat = categories.find(c => c !== nameToDelete) || 'ECA HQ';
+      showAlert(`Re-aligning ${affectedTasks.length} tasks to ${fallbackCat}...`, 'info');
       for (const t of affectedTasks) {
         const init = parseTaskMetadata(t, team).initiative;
         const cleanNote = getCleanNote(t.note);
-        const updatedNote = formatNoteWithMetadata(cleanNote, 'ECA HQ', init);
+        const updatedNote = formatNoteWithMetadata(cleanNote, fallbackCat, init);
         await supabase.from('tasks').update({ note: updatedNote }).eq('id', t.id);
       }
     }
@@ -2143,7 +2150,7 @@ export default function UnifiedMeritApp() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
                   <div className="bg-[#f4f6f4] border border-[#e1e7e1] rounded-xl p-3 flex flex-col justify-center">
                     <span className="text-base font-bold text-stone-850 font-headline leading-tight">{tasks.length}</span>
-                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-550 mt-0.5">Total Specs</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-550 mt-0.5">Total Task</span>
                   </div>
                   <div className="bg-[#f4f6f4] border border-[#e1e7e1] rounded-xl p-3 flex flex-col justify-center">
                     <span className="text-base font-bold text-amber-600 font-headline leading-tight">{tasks.filter(t => t.status === 'running').length}</span>
@@ -2164,21 +2171,24 @@ export default function UnifiedMeritApp() {
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-black uppercase tracking-widest text-stone-500 font-headline">Active View:</span>
                     <button
-                      onClick={() => setSelectedFunctionTag('All')}
+                      onClick={() => {
+                        setCeoViewActive(!ceoViewActive);
+                        if (!ceoViewActive) setSelectedFunctionTag('All');
+                      }}
                       className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
-                        selectedFunctionTag === 'All'
+                        ceoViewActive
                           ? 'bg-[#406c58] text-white border-[#406c58] shadow-sm font-bold'
                           : 'bg-white text-stone-600 border-[#e1e7e1] hover:border-stone-300'
                       }`}
                     >
-                      👑 CEO View
+                      👑 CEO View {ceoViewActive ? 'ON' : 'OFF'}
                     </button>
                     <span className="text-stone-300">|</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-stone-550 font-headline">Department Filters:</span>
                     {FUNCTION_TAGS.map(tag => (
                       <button
                         key={tag}
-                        onClick={() => setSelectedFunctionTag(tag)}
+                        onClick={() => setSelectedFunctionTag(selectedFunctionTag === tag ? 'All' : tag)}
                         className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer border ${
                           selectedFunctionTag === tag
                             ? 'bg-[#406c58] text-white border-[#406c58] shadow-sm font-bold'
@@ -2191,7 +2201,7 @@ export default function UnifiedMeritApp() {
                   </div>
                   
                   <span className="text-[8px] font-black uppercase tracking-widest text-stone-500 bg-white border border-[#e1e7e1] px-2.5 py-1 rounded-lg">
-                    {selectedFunctionTag === 'All' ? 'Showing All Functions' : `Focused on: ${selectedFunctionTag}`}
+                    {ceoViewActive ? 'My Tasks Only' : selectedFunctionTag === 'All' ? 'All Staff Tasks' : `Focused on: ${selectedFunctionTag}`}
                   </span>
                 </div>
 
@@ -2205,12 +2215,17 @@ export default function UnifiedMeritApp() {
                         const meta = parseTaskMetadata(t, team);
                         const matchFolder = meta.category === folder;
                         const matchTag = selectedFunctionTag === 'All' || meta.initiative === selectedFunctionTag;
-                        return matchFolder && matchTag;
+                        // CEO View: when ON, only show tasks owned by me
+                        const matchOwner = ceoViewActive ? t.ownerId === authProfile?.id : true;
+                        return matchFolder && matchTag && matchOwner;
                       });
 
+                      // When a department filter is active, show ALL statuses; otherwise only ongoing
+                      const showAllStatuses = selectedFunctionTag !== 'All';
+                      const queuedTasks = folderAllTasks.filter(t => t.status === 'queued');
                       const ongoingTasks = folderAllTasks.filter(t => t.status === 'running' || t.status === 'paused');
-                      const pendingCount = folderAllTasks.filter(t => t.status === 'queued').length;
-                      const completedCount = folderAllTasks.filter(t => t.status === 'completed').length;
+                      const completedTasks = folderAllTasks.filter(t => t.status === 'completed');
+                      const pendingCount = queuedTasks.length;
 
                       return (
                         <div 
@@ -2268,89 +2283,128 @@ export default function UnifiedMeritApp() {
                               />
                             </div>
 
-                            {/* Ongoing Tasks List */}
+                            {/* Task List: show ALL statuses when department filter is active */}
                             <div className="max-h-[385px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-                              {ongoingTasks.length > 0 ? (
-                                ongoingTasks.map(task => {
-                                  // Find owner details
-                                  const owner = team.find(m => m.id === task.ownerId);
-                                  const workflowTotal = task.workflow?.length || 0;
-                                  const workflowDone = task.workflow?.filter(w => w.isCompleted).length || 0;
-                                  const percent = workflowTotal > 0 ? Math.round((workflowDone / workflowTotal) * 100) : 0;
-                                  
-                                  return (
-                                    <div
-                                      key={task.id}
-                                      draggable={true}
-                                      onDragStart={(e) => {
-                                        e.dataTransfer.setData('text/plain', task.id);
-                                        e.dataTransfer.effectAllowed = 'move';
-                                      }}
-                                      onClick={() => setSelectedTask(task)}
-                                      className={`p-3 ${theme.bg} hover:bg-stone-50/55 border border-[#e1e7e1]/80 hover:border-[#406c58] rounded-xl cursor-grab active:cursor-grabbing transition-all duration-155 space-y-2.5 group/taskitem shadow-sm active:scale-[0.98] active:translate-y-[0.5px]`}
-                                    >
-                                      {/* Row Header: Task name and Status timer */}
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-2 min-w-0 flex-1">
-                                          <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                                            task.status === 'running' ? 'bg-amber-500 animate-pulse' : 'bg-stone-450'
-                                          }`} />
-                                          <div className="min-w-0 flex-1">
-                                            <span className="text-[11px] font-bold text-stone-850 block leading-tight truncate group-hover/taskitem:text-[#406c58] transition-colors">
-                                              {task.title}
-                                            </span>
+                              {/* Queued Tasks (shown when department filter is active) */}
+                              {showAllStatuses && queuedTasks.length > 0 && (
+                                <>
+                                  <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">📋 Queued ({queuedTasks.length})</p>
+                                  {queuedTasks.map(task => {
+                                    const owner = team.find(m => m.id === task.ownerId);
+                                    return (
+                                      <div key={task.id} onClick={() => setSelectedTask(task)} className={`p-3 ${theme.bg} hover:bg-stone-50/55 border border-[#e1e7e1]/80 hover:border-[#406c58] rounded-xl cursor-pointer transition-all duration-155 space-y-1.5 shadow-sm`}>
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 min-w-0 flex-1">
+                                            <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-stone-350" />
+                                            <span className="text-[11px] font-bold text-stone-850 block leading-tight truncate">{task.title}</span>
                                           </div>
+                                          <span className="text-[7px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-headline leading-none shrink-0">QUEUED</span>
                                         </div>
-                                        
-                                        {/* Monospace Timer or Paused Badge */}
-                                        <div className="shrink-0 flex items-center gap-1.5">
-                                          {task.status === 'running' ? (
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-[7px] font-black tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded uppercase font-headline leading-none">
-                                                ACTIVE
-                                              </span>
-                                              <span className="font-mono text-[9px] font-black text-amber-700 bg-amber-50/70 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5 leading-none">
-                                                <span className="material-symbols-outlined text-[9px] block">schedule</span>
-                                                {fmt(task.elapsedSec)}
+                                        {owner && <div className="flex items-center gap-1.5 text-[9px] text-stone-600"><img src={owner.imgUrl} className="w-4 h-4 rounded-full object-cover border border-[#e1e7e1]" alt="" /><span className="truncate font-semibold">{owner.name}</span></div>}
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+
+                              {/* Ongoing Tasks (always shown) */}
+                              {ongoingTasks.length > 0 && (
+                                <>
+                                  {showAllStatuses && <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">⚡ Active ({ongoingTasks.length})</p>}
+                                  {ongoingTasks.map(task => {
+                                    const owner = team.find(m => m.id === task.ownerId);
+                                    const workflowTotal = task.workflow?.length || 0;
+                                    const workflowDone = task.workflow?.filter(w => w.isCompleted).length || 0;
+                                    const percent = workflowTotal > 0 ? Math.round((workflowDone / workflowTotal) * 100) : 0;
+                                    
+                                    return (
+                                      <div
+                                        key={task.id}
+                                        draggable={true}
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.setData('text/plain', task.id);
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        onClick={() => setSelectedTask(task)}
+                                        className={`p-3 ${theme.bg} hover:bg-stone-50/55 border border-[#e1e7e1]/80 hover:border-[#406c58] rounded-xl cursor-grab active:cursor-grabbing transition-all duration-155 space-y-2.5 group/taskitem shadow-sm active:scale-[0.98] active:translate-y-[0.5px]`}
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 min-w-0 flex-1">
+                                            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                                              task.status === 'running' ? 'bg-amber-500 animate-pulse' : 'bg-stone-450'
+                                            }`} />
+                                            <div className="min-w-0 flex-1">
+                                              <span className="text-[11px] font-bold text-stone-850 block leading-tight truncate group-hover/taskitem:text-[#406c58] transition-colors">
+                                                {task.title}
                                               </span>
                                             </div>
-                                          ) : (
-                                            <span className="text-[7px] font-black uppercase tracking-wider text-stone-550 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded font-headline leading-none">
-                                              PAUSED
-                                            </span>
-                                          )}
+                                          </div>
+                                          <div className="shrink-0 flex items-center gap-1.5">
+                                            {task.status === 'running' ? (
+                                              <div className="flex items-center gap-1">
+                                                <span className="text-[7px] font-black tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded uppercase font-headline leading-none">ACTIVE</span>
+                                                <span className="font-mono text-[9px] font-black text-amber-700 bg-amber-50/70 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5 leading-none">
+                                                  <span className="material-symbols-outlined text-[9px] block">schedule</span>
+                                                  {fmt(task.elapsedSec)}
+                                                </span>
+                                              </div>
+                                            ) : (
+                                              <span className="text-[7px] font-black uppercase tracking-wider text-stone-550 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded font-headline leading-none">PAUSED</span>
+                                            )}
+                                          </div>
                                         </div>
+                                        <div className="flex items-center justify-between text-[9px] text-stone-600 border-t border-[#e1e7e1]/40 pt-2 shrink-0">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            {owner ? (
+                                              <>
+                                                <img src={owner.imgUrl} className="w-4 h-4 rounded-full object-cover border border-[#e1e7e1] shrink-0" alt="" />
+                                                <span className="truncate font-semibold text-stone-750">{owner.name}</span>
+                                              </>
+                                            ) : (
+                                              <span className="italic text-stone-450">Unassigned</span>
+                                            )}
+                                          </div>
+                                          <span className="font-mono text-[8px] font-bold text-stone-500 shrink-0">
+                                            {workflowDone}/{workflowTotal} steps ({percent}%)
+                                          </span>
+                                        </div>
+                                        {workflowTotal > 0 && (
+                                          <div className="w-full bg-stone-150 h-1 rounded-full overflow-hidden shrink-0">
+                                            <div className={`h-full rounded-full transition-all duration-300 ${
+                                              task.status === 'running' ? 'bg-[#406c58]' : 'bg-stone-400'
+                                            }`} style={{ width: `${percent}%` }} />
+                                          </div>
+                                        )}
                                       </div>
+                                    );
+                                  })}
+                                </>
+                              )}
 
-                                      {/* Assignee & Progress info */}
-                                      <div className="flex items-center justify-between text-[9px] text-stone-600 border-t border-[#e1e7e1]/40 pt-2 shrink-0">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                          {owner ? (
-                                            <>
-                                              <img src={owner.imgUrl} className="w-4 h-4 rounded-full object-cover border border-[#e1e7e1] shrink-0" alt="" />
-                                              <span className="truncate font-semibold text-stone-750">{owner.name}</span>
-                                            </>
-                                          ) : (
-                                            <span className="italic text-stone-450">Unassigned</span>
-                                          )}
+                              {/* Completed Tasks (shown when department filter is active) */}
+                              {showAllStatuses && completedTasks.length > 0 && (
+                                <>
+                                  <p className="text-[7px] font-black uppercase tracking-widest text-stone-450 mt-1">✅ Completed ({completedTasks.length})</p>
+                                  {completedTasks.map(task => {
+                                    const owner = team.find(m => m.id === task.ownerId);
+                                    return (
+                                      <div key={task.id} onClick={() => setSelectedTask(task)} className={`p-3 bg-emerald-50/30 hover:bg-emerald-50/60 border border-emerald-200/40 rounded-xl cursor-pointer transition-all duration-155 space-y-1.5 shadow-sm opacity-75`}>
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2 min-w-0 flex-1">
+                                            <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-emerald-500" />
+                                            <span className="text-[11px] font-bold text-stone-700 block leading-tight truncate line-through">{task.title}</span>
+                                          </div>
+                                          <span className="text-[7px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-headline leading-none shrink-0">DONE</span>
                                         </div>
-                                        <span className="font-mono text-[8px] font-bold text-stone-500 shrink-0">
-                                          {workflowDone}/{workflowTotal} steps ({percent}%)
-                                        </span>
+                                        {owner && <div className="flex items-center gap-1.5 text-[9px] text-stone-500"><img src={owner.imgUrl} className="w-4 h-4 rounded-full object-cover border border-[#e1e7e1]" alt="" /><span className="truncate font-semibold">{owner.name}</span></div>}
                                       </div>
+                                    );
+                                  })}
+                                </>
+                              )}
 
-                                      {/* Progress Bar */}
-                                      {workflowTotal > 0 && (
-                                        <div className="w-full bg-stone-150 h-1 rounded-full overflow-hidden shrink-0">
-                                          <div className={`h-full rounded-full transition-all duration-300 ${
-                                            task.status === 'running' ? 'bg-[#406c58]' : 'bg-stone-400'
-                                          }`} style={{ width: `${percent}%` }} />
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })
-                              ) : (
+                              {/* Empty State */}
+                              {ongoingTasks.length === 0 && (!showAllStatuses || (queuedTasks.length === 0 && completedTasks.length === 0)) && (
                                 <div className="py-5 text-center border border-dashed border-[#e1e7e1] rounded-xl bg-white/40">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-stone-450 flex items-center justify-center gap-1.5">
                                     <span className="material-symbols-outlined text-[10px] text-emerald-500 font-bold">check_circle</span>
@@ -2365,11 +2419,11 @@ export default function UnifiedMeritApp() {
                           <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-stone-500 border-t border-[#e1e7e1]/45 pt-2 shrink-0 font-headline">
                             <span className="flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-stone-400" />
-                              {pendingCount} Pending Spec{pendingCount !== 1 ? 's' : ''}
+                              {pendingCount} Queued
                             </span>
                             <span className="flex items-center gap-1">
                               <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                              {completedCount} Completed
+                              {completedTasks.length} Completed
                             </span>
                           </div>
                         </div>
@@ -2448,28 +2502,13 @@ export default function UnifiedMeritApp() {
                           }}
                           className="w-full bg-white border border-[#e1e7e1] rounded-xl py-1.5 px-3 outline-none text-[#1a2620] font-semibold text-xs focus:border-[#406c58]/40 transition-colors"
                         >
-                          {CATEGORIES.map(c => (
+                          {categories.map(c => (
                             <option key={c} value={c}>{c}</option>
                           ))}
                         </select>
                       </div>
 
-                      {/* Initiative Dropdown */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-550 font-headline">Function Tag</label>
-                        <select
-                          value={selectedTask.initiative || parseTaskMetadata(selectedTask, team).initiative}
-                          onChange={e => {
-                            const newInit = e.target.value;
-                            updateSelectedTaskField({ initiative: newInit });
-                          }}
-                          className="w-full bg-white border border-[#e1e7e1] rounded-xl py-1.5 px-3 outline-none text-[#1a2620] font-semibold text-xs focus:border-[#406c58]/40 transition-colors"
-                        >
-                          {FUNCTION_TAGS.map(i => (
-                            <option key={i} value={i}>{i}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {/* Function Tag is auto-classified from task title */}
 
                       {/* Impact Level Dropdown */}
                       <div className="flex flex-col gap-1">
@@ -2748,7 +2787,10 @@ export default function UnifiedMeritApp() {
                             </div>
                             
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${efficiencyColor}`}>
-                              Eff: {Math.round((member.efficiencyScore || 1.0) * 100)}%
+                              Points: {(() => {
+                                const memberLogs = activityLog.filter(a => a.staffId === member.id && a.type === 'points_earned');
+                                return memberLogs.reduce((sum, log) => sum + (log.points || 0), 0);
+                              })()}
                             </span>
                           </div>
 
@@ -3730,24 +3772,13 @@ export default function UnifiedMeritApp() {
                       onChange={e => setTaskCategory(e.target.value)}
                       className="w-full bg-[#f4f6f4] border border-[#d8e2d8] rounded-xl px-4 py-3 text-xs font-bold text-[#1a2620] outline-none cursor-pointer"
                     >
-                      {CATEGORIES.map(cat => (
+                      {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-stone-500 block mb-2">Function Tag (What)</label>
-                    <select
-                      value={activeInitiative}
-                      onChange={e => setActiveInitiative(e.target.value)}
-                      className="w-full bg-[#f4f6f4] border border-[#d8e2d8] rounded-xl px-4 py-3 text-xs font-bold text-[#1a2620] outline-none cursor-pointer"
-                    >
-                      {FUNCTION_TAGS.map(tag => (
-                        <option key={tag} value={tag}>{tag}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Function Tag is auto-classified from task title — no manual dropdown needed */}
                 </div>
 
                 <div>

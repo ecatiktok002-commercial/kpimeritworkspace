@@ -1,0 +1,950 @@
+      {authProfile?.is_manager && (
+        <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 p-6 h-[calc(100vh-80px)] overflow-hidden">
+          
+          {/* COLUMN 1: OBSIDIAN EXPLORER SIDEBAR (xl:col-span-3) */}
+          <section className="xl:col-span-3 bg-white border border-[#eae6df] rounded-3xl p-4 flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            <div className="flex flex-col h-full overflow-hidden space-y-4">
+              
+              {/* Explorer Header */}
+              <div className="space-y-3 shrink-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-stone-600 flex items-center gap-1.5 font-headline">
+                    <span className="material-symbols-outlined text-[#8c7355] text-sm">folder_open</span>
+                    Vault Explorer
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        if (groupingMode === 'category') {
+                          const name = prompt('Create new category folder:');
+                          if (name) handleCreateCategory(name);
+                        } else {
+                          const name = prompt('Create new objective folder:');
+                          if (name && name.trim()) {
+                            const trimmed = name.trim();
+                            setLocalInitiatives(prev => {
+                              const updated = [...prev, trimmed];
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('localInitiatives', JSON.stringify(updated));
+                              }
+                              return updated;
+                            });
+                            setActiveInitiative(trimmed);
+                            showAlert('Objective alignment registered.');
+                          }
+                        }
+                      }}
+                      className="p-1 hover:bg-stone-100 rounded text-stone-400 hover:text-[#8c7355] transition-all duration-150 active:scale-90 active:translate-y-[0.5px] cursor-pointer"
+                      title="New Folder"
+                    >
+                      <span className="material-symbols-outlined text-[16px] block">create_new_folder</span>
+                    </button>
+                    <button
+                      onClick={() => handleCreateNewFileTask('General', localInitiatives[0] || 'General Operations')}
+                      className="p-1 hover:bg-stone-100 rounded text-stone-400 hover:text-[#8c7355] transition-all duration-150 active:scale-90 active:translate-y-[0.5px] cursor-pointer"
+                      title="New Task Spec (File)"
+                    >
+                      <span className="material-symbols-outlined text-[16px] block">note_add</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search input */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-stone-450">
+                    <span className="material-symbols-outlined text-[16px]">search</span>
+                  </span>
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search files/folders..."
+                    className="w-full bg-[#faf8f5] border border-[#e5dfd5] rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-[#2c241e] outline-none focus:border-[#8c7355]/40 transition-colors"
+                  />
+                </div>
+
+                {/* Grouping Toggle Mode tabs */}
+                <div className="flex bg-[#faf8f5] border border-[#eae6df] rounded-xl p-1 shrink-0">
+                  <button
+                    onClick={() => setGroupingMode('category')}
+                    className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-150 active:scale-[0.98] active:translate-y-[0.5px] cursor-pointer ${
+                      groupingMode === 'category' ? 'bg-[#8c7355] text-white shadow-sm font-headline' : 'text-stone-500 hover:text-stone-850'
+                    }`}
+                  >
+                    Categories
+                  </button>
+                  <button
+                    onClick={() => setGroupingMode('initiative')}
+                    className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all duration-150 active:scale-[0.98] active:translate-y-[0.5px] cursor-pointer ${
+                      groupingMode === 'initiative' ? 'bg-[#8c7355] text-white shadow-sm font-headline' : 'text-stone-500 hover:text-stone-850'
+                    }`}
+                  >
+                    Objectives
+                  </button>
+                </div>
+              </div>
+
+              {/* Tree Menu */}
+              <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                {(groupingMode === 'category' ? categories : localInitiatives).map(folder => {
+                  const folderTasks = tasks.filter(t => {
+                    const meta = parseTaskMetadata(t, team);
+                    const isCompleted = t.status === 'completed';
+                    if (isCompleted) return false;
+                    
+                    const matchGroup = groupingMode === 'category' 
+                      ? meta.category === folder 
+                      : meta.initiative === folder;
+                    
+                    const matchSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
+                    return matchGroup && matchSearch;
+                  });
+
+                  const isExpanded = !!expandedFolders[folder];
+                  
+                  return (
+                    <div key={folder} className="space-y-1">
+                      {/* Folder Row */}
+                      <div
+                        onClick={() => setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }))}
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer group/folder"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="material-symbols-outlined text-[16px] text-stone-400 shrink-0">
+                            {isExpanded ? 'expand_more' : 'chevron_right'}
+                          </span>
+                          <span className="material-symbols-outlined text-[16px] text-[#8c7355] shrink-0">
+                            folder
+                          </span>
+                          <span className="text-xs font-bold text-stone-750 truncate">{folder}</span>
+                        </div>
+
+                        {/* Folder Action Icons */}
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <span className="text-[9px] font-black text-stone-400 bg-[#faf8f5] border border-[#eae6df] px-1.5 py-0.5 rounded">
+                            {folderTasks.length}
+                          </span>
+                          
+                          {/* Don't allow delete/rename for system general defaults */}
+                          {folder !== 'General' && folder !== 'General Operations' && (
+                            <div className="hidden group-hover/folder:flex items-center gap-1 pl-1 border-l border-stone-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (groupingMode === 'category') {
+                                    handleRenameCategory(folder);
+                                  } else {
+                                    handleRenameInitiative(folder);
+                                  }
+                                }}
+                                className="p-0.5 hover:bg-stone-200 rounded text-stone-400 hover:text-stone-700 transition-colors active:scale-90 duration-100"
+                                title="Rename Folder"
+                              >
+                                <span className="material-symbols-outlined text-[12px] block">edit</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (groupingMode === 'category') {
+                                    handleDeleteCategory(folder);
+                                  } else {
+                                    handleDeleteInitiative(folder);
+                                  }
+                                }}
+                                className="p-0.5 hover:bg-rose-50 rounded text-stone-400 hover:text-rose-600 transition-colors active:scale-90 duration-100"
+                                title="Delete Folder"
+                              >
+                                <span className="material-symbols-outlined text-[12px] block">delete</span>
+                              </button>
+                            </div>
+                          )}
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCreateNewFileTask(
+                                groupingMode === 'category' ? folder : 'General',
+                                groupingMode === 'initiative' ? folder : (localInitiatives[0] || 'General Operations')
+                              );
+                              setExpandedFolders(prev => ({ ...prev, [folder]: true }));
+                            }}
+                            className="hidden group-hover/folder:block p-0.5 hover:bg-stone-200 rounded text-stone-400 hover:text-[#8c7355] transition-colors active:scale-90 duration-100"
+                            title="Create Spec Inside"
+                          >
+                            <span className="material-symbols-outlined text-[12px] block">add</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Folder Tasks list (Files) */}
+                      {isExpanded && (
+                        <div className="pl-6 space-y-0.5 border-l border-stone-200 ml-4 pb-1">
+                          {folderTasks.map(task => {
+                            const isSelected = selectedTask?.id === task.id;
+                            const statusColor = 
+                              task.status === 'running' ? 'bg-amber-400' :
+                              task.status === 'paused' ? 'bg-stone-400 animate-pulse' :
+                              'bg-stone-300';
+
+                            return (
+                              <div
+                                key={task.id}
+                                onClick={() => setSelectedTask(task)}
+                                className={`flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-all duration-150 active:scale-[0.98] ${
+                                  isSelected 
+                                    ? 'bg-[#faf8f5] border border-[#8c7355]/30 text-[#8c7355] font-semibold shadow-sm' 
+                                    : 'text-stone-600 hover:text-stone-850 hover:bg-stone-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor}`} />
+                                  <span className="material-symbols-outlined text-[14px] text-stone-400 shrink-0">
+                                    description
+                                  </span>
+                                  <span className="text-xs truncate">{task.title}</span>
+                                </div>
+                                <span className="text-[9px] font-mono text-stone-400 shrink-0 ml-2">
+                                  +{task.points}p
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {folderTasks.length === 0 && (
+                            <p className="text-[9px] text-stone-400 italic pl-3 py-1">Folder is empty</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Completed Archive Folder */}
+                <div className="space-y-1 pt-4 border-t border-[#eae6df]">
+                  <div
+                    onClick={() => setArchiveOpen(!archiveOpen)}
+                    className="flex items-center justify-between p-2 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="material-symbols-outlined text-[16px] text-stone-400 shrink-0">
+                        {archiveOpen ? 'expand_more' : 'chevron_right'}
+                      </span>
+                      <span className="material-symbols-outlined text-[16px] text-emerald-600 shrink-0">
+                        archive
+                      </span>
+                      <span className="text-xs font-bold text-stone-750 font-headline tracking-wide">Completed Archive</span>
+                    </div>
+                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded">
+                      {tasks.filter(t => t.status === 'completed' && t.title.toLowerCase().includes(searchQuery.toLowerCase())).length}
+                    </span>
+                  </div>
+
+                  {archiveOpen && (
+                    <div className="pl-6 space-y-0.5 border-l border-emerald-100 ml-4 pb-1">
+                      {tasks.filter(t => t.status === 'completed' && t.title.toLowerCase().includes(searchQuery.toLowerCase())).map(task => {
+                        const isSelected = selectedTask?.id === task.id;
+                        return (
+                          <div
+                            key={task.id}
+                            onClick={() => setSelectedTask(task)}
+                            className={`flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-all duration-150 active:scale-[0.98] ${
+                              isSelected 
+                                ? 'bg-[#faf8f5] border border-[#8c7355]/30 text-[#8c7355] font-semibold shadow-sm' 
+                                : 'text-stone-550 hover:text-stone-850 hover:bg-stone-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="material-symbols-outlined text-[14px] text-emerald-550 shrink-0">
+                                check_circle
+                              </span>
+                              <span className="text-xs truncate line-through">{task.title}</span>
+                            </div>
+                            <span className="text-[9px] font-mono text-emerald-600 shrink-0 ml-2 font-bold">
+                              +{task.points}p
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {tasks.filter(t => t.status === 'completed').length === 0 && (
+                        <p className="text-[9px] text-stone-400 italic pl-3 py-1">No completed specs yet</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </section>
+
+          {/* COLUMN 2: OBSIDIAN EDITOR CANVAS (xl:col-span-6) */}
+          <section className="xl:col-span-6 bg-white border border-[#eae6df] rounded-3xl p-6 flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 relative">
+            {!selectedTask ? (
+              /* Welcome Vibe */
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-8 select-none">
+                <div className="w-16 h-16 bg-[#8c7355]/10 border border-[#8c7355]/20 rounded-3xl flex items-center justify-center text-[#8c7355] animate-fade-in">
+                  <span className="material-symbols-outlined text-[32px]">editor_choice</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black font-headline tracking-widest text-[#2c241e] uppercase">MeritKPI Workspace</h2>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-stone-400 mt-1">CEO Strategy & Task Spec Decomposer</p>
+                </div>
+                
+                {/* Vault stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-lg">
+                  <div className="bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 flex flex-col justify-center">
+                    <span className="text-xl font-bold text-stone-800 font-headline">{tasks.length}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-450 mt-1">Total Specs</span>
+                  </div>
+                  <div className="bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 flex flex-col justify-center">
+                    <span className="text-xl font-bold text-amber-600 font-headline">{tasks.filter(t => t.status === 'running').length}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-450 mt-1">Running</span>
+                  </div>
+                  <div className="bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 flex flex-col justify-center">
+                    <span className="text-xl font-bold text-emerald-600 font-headline">{tasks.filter(t => t.status === 'completed').length}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-450 mt-1">Completed</span>
+                  </div>
+                  <div className="bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 flex flex-col justify-center">
+                    <span className="text-xl font-bold text-stone-850 font-headline">{categories.length}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-450 mt-1">Folders</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-w-sm">
+                  <p className="text-xs text-stone-500 font-medium max-w-[45ch] leading-relaxed">
+                    Select any specification document from the left folder tree to inspect notes, manage personnel assignments, calibrate impact points, or compose directives.
+                  </p>
+                  <div className="flex gap-3 justify-center pt-2">
+                    <button
+                      onClick={() => handleCreateNewFileTask('General', localInitiatives[0] || 'General Operations')}
+                      className="px-4 py-2 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] shadow-sm cursor-pointer"
+                    >
+                      New Task Spec
+                    </button>
+                    <button
+                      onClick={() => {
+                        const name = prompt('Create new category folder:');
+                        if (name) handleCreateCategory(name);
+                      }}
+                      className="px-4 py-2 bg-white border border-[#eae6df] hover:bg-stone-50 text-stone-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] shadow-sm cursor-pointer"
+                    >
+                      New Folder
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Active Document Editor */
+              <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                
+                {/* Breadcrumb Path Bar */}
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400 shrink-0">
+                  <span>Vault</span>
+                  <span className="material-symbols-outlined text-[12px]">chevron_right</span>
+                  <span>
+                    {selectedTask.category || parseTaskMetadata(selectedTask, team).category}
+                  </span>
+                  <span className="material-symbols-outlined text-[12px]">chevron_right</span>
+                  <span className="text-stone-550 truncate max-w-[150px]">
+                    {selectedTask.title || 'Untitled Spec'}
+                  </span>
+                </div>
+
+                {/* Main scrollable editor contents */}
+                <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar">
+                  
+                  {/* Document Title */}
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={selectedTask.title}
+                      onChange={e => updateSelectedTaskField({ title: e.target.value })}
+                      className="w-full text-2xl font-bold bg-transparent outline-none border-b border-stone-200 focus:border-[#8c7355]/40 pb-2 text-[#2c241e] font-headline tracking-tight"
+                      placeholder="Untitled Spec"
+                    />
+                  </div>
+
+                  {/* Obsidian Metadata Properties Block */}
+                  <div className="bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 space-y-3.5 shrink-0 text-xs">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-[#8c7355] border-b border-[#eae6df] pb-1.5 mb-2 font-headline">
+                      Spec Properties
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {/* Owner Dropdown */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Owner</label>
+                        <select
+                          value={selectedTask.ownerId || ''}
+                          onChange={e => updateSelectedTaskField({ ownerId: e.target.value })}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs focus:border-[#8c7355]/40 transition-colors"
+                        >
+                          <option value="">Unassigned</option>
+                          {team.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Category Dropdown */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Category</label>
+                        <select
+                          value={selectedTask.category || parseTaskMetadata(selectedTask, team).category}
+                          onChange={e => {
+                            const newCat = e.target.value;
+                            updateSelectedTaskField({ category: newCat });
+                          }}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs focus:border-[#8c7355]/40 transition-colors"
+                        >
+                          {categories.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Initiative Dropdown */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Objective</label>
+                        <select
+                          value={selectedTask.initiative || parseTaskMetadata(selectedTask, team).initiative}
+                          onChange={e => {
+                            const newInit = e.target.value;
+                            updateSelectedTaskField({ initiative: newInit });
+                          }}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs focus:border-[#8c7355]/40 transition-colors"
+                        >
+                          {localInitiatives.map(i => (
+                            <option key={i} value={i}>{i}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Impact Level Dropdown */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Impact</label>
+                        <select
+                          value={selectedTask.impact || 'Medium'}
+                          onChange={e => updateSelectedTaskField({ impact: e.target.value as ImpactLevel })}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs focus:border-[#8c7355]/40 transition-colors"
+                        >
+                          {IMPACT_LEVELS.map(imp => (
+                            <option key={imp} value={imp}>{imp}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Complexity Level Dropdown */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Complexity</label>
+                        <select
+                          value={selectedTask.complexity || 'Medium'}
+                          onChange={e => updateSelectedTaskField({ complexity: e.target.value as ComplexityLevel })}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs focus:border-[#8c7355]/40 transition-colors"
+                        >
+                          {COMPLEXITY_LEVELS.map(comp => (
+                            <option key={comp} value={comp}>{comp}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Estimated Duration minutes */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase tracking-widest text-stone-450 font-headline">Est. Time (Mins)</label>
+                        <input
+                          type="number"
+                          value={Math.round(selectedTask.totalSec / 60) || 60}
+                          onChange={e => updateSelectedTaskField({ totalSec: Number(e.target.value) * 60 })}
+                          className="w-full bg-white border border-[#eae6df] rounded-xl py-1.5 px-3 outline-none text-[#2c241e] font-semibold text-xs text-center focus:border-[#8c7355]/40 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dynamic Live Points Indicator */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#eae6df] mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-[#8c7355]">military_tech</span>
+                        <span className="text-[10px] font-bold text-stone-600 uppercase tracking-wider font-headline">Calculated Rewards:</span>
+                      </div>
+                      
+                      {/* Calculate live rewards based on properties */}
+                      {(() => {
+                        const activePointConfig = getActivePointConfig(meritConfig);
+                        const definition = taskDefinitions.find(d => d.title.toLowerCase() === selectedTask.title.toLowerCase());
+                        const durationMins = Math.round(selectedTask.totalSec / 60) || 60;
+                        const pointCalc = calculateTaskPoints(
+                          selectedTask.title,
+                          getCleanNote(selectedTask.note),
+                          durationMins,
+                          activePointConfig,
+                          definition ? { ...definition, estimatedMins: durationMins } : undefined,
+                          selectedTask.impact,
+                          selectedTask.complexity
+                        );
+                        return (
+                          <span className="text-xs font-black text-[#8c7355] font-mono">
+                            +{pointCalc.points} pts · {pointCalc.tierName}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Document Directives Notes */}
+                  <div className="space-y-2">
+                    <label className="text-[8px] font-black uppercase tracking-widest text-stone-400 block ml-1 font-headline">Directives Notes</label>
+                    <textarea
+                      value={getCleanNote(selectedTask.note)}
+                      onChange={e => updateSelectedTaskField({ note: e.target.value })}
+                      className="w-full bg-[#faf8f5] border border-[#eae6df] rounded-2xl p-4 text-xs font-medium leading-relaxed text-[#2c241e] outline-none focus:border-[#8c7355]/40 transition-colors h-48 resize-none custom-scrollbar"
+                      placeholder="Decompose task scope here. Describe the expected outcomes, execution guidelines, and calibration standards..."
+                    />
+                  </div>
+
+                  {/* Document Sub-steps checklist */}
+                  <div className="space-y-3 border-t border-[#eae6df] pt-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-stone-400 ml-1 font-headline">Execution Steps Checklist</label>
+                      <span className="text-[9px] font-black text-[#8c7355] bg-[#8c7355]/5 border border-[#8c7355]/15 px-2 py-0.5 rounded-full font-headline">
+                        {selectedTask.workflow?.filter(w => w.isCompleted).length || 0} / {selectedTask.workflow?.length || 0} completed
+                      </span>
+                    </div>
+
+                    {/* Step list */}
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                      {selectedTask.workflow?.map(step => (
+                        <div key={step.id} className="flex items-center justify-between p-2.5 bg-white border border-[#eae6df] hover:border-stone-300 rounded-xl transition-all group/step">
+                          <div
+                            onClick={() => {
+                              const updated = selectedTask.workflow?.map(w => w.id === step.id ? { ...w, isCompleted: !w.isCompleted } : w) || [];
+                              updateSelectedTaskField({ workflow: updated });
+                            }}
+                            className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1"
+                          >
+                            <span className="material-symbols-outlined text-[18px] text-[#8c7355] shrink-0">
+                              {step.isCompleted ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                            <span className={`text-xs truncate ${step.isCompleted ? 'line-through text-stone-400' : 'text-stone-700 font-semibold'}`}>
+                              {step.name}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              const updated = selectedTask.workflow?.filter(w => w.id !== step.id) || [];
+                              updateSelectedTaskField({ workflow: updated });
+                            }}
+                            className="opacity-0 group-hover/step:opacity-100 p-0.5 hover:bg-rose-50 rounded text-stone-400 hover:text-rose-600 transition-all shrink-0 ml-2 cursor-pointer active:scale-90"
+                            title="Delete Step"
+                          >
+                            <span className="material-symbols-outlined text-[14px] block">delete</span>
+                          </button>
+                        </div>
+                      ))}
+                      {(!selectedTask.workflow || selectedTask.workflow.length === 0) && (
+                        <p className="text-[10px] text-stone-400 italic text-center py-4">No checklist steps defined. Add one below.</p>
+                      )}
+                    </div>
+
+                    {/* Quick Add Step */}
+                    <div className="flex gap-2">
+                      <input
+                        value={newWorkflowStep}
+                        onChange={e => setNewWorkflowStep(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newWorkflowStep.trim()) {
+                              const newStep = { id: 'wf-' + Date.now(), name: newWorkflowStep.trim(), isCompleted: false };
+                              updateSelectedTaskField({ workflow: [...(selectedTask.workflow || []), newStep] });
+                              setNewWorkflowStep('');
+                            }
+                          }
+                        }}
+                        placeholder="Add a new milestone/checkpoint step..."
+                        className="flex-1 bg-[#faf8f5] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-semibold text-[#2c241e] outline-none focus:border-[#8c7355]/40 transition-colors"
+                      />
+                      <button
+                        onClick={() => {
+                          if (newWorkflowStep.trim()) {
+                            const newStep = { id: 'wf-' + Date.now(), name: newWorkflowStep.trim(), isCompleted: false };
+                            updateSelectedTaskField({ workflow: [...(selectedTask.workflow || []), newStep] });
+                            setNewWorkflowStep('');
+                          }
+                        }}
+                        className="bg-[#8c7355] hover:bg-[#7a6449] text-white px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer shadow-sm"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Footer Controls Pane */}
+                <div className="border-t border-[#eae6df] pt-4 flex flex-wrap gap-3 items-center justify-between shrink-0 bg-white">
+                  
+                  {/* Left Controls: Delete / Save */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        handleDeleteTask(selectedTask.id);
+                        setSelectedTask(null);
+                      }}
+                      className="px-4 py-2.5 rounded-xl border border-stone-250 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 text-stone-600 text-[10px] font-black uppercase tracking-widest transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={handleSaveSelectedTask}
+                      className="px-5 py-2.5 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] shadow-md cursor-pointer"
+                    >
+                      Save Spec
+                    </button>
+                  </div>
+
+                  {/* Right Controls: Task Runner Override */}
+                  <div className="flex items-center gap-3">
+                    {selectedTask.status === 'completed' ? (
+                      <span className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[14px]">verified</span>
+                        Spec Completed
+                      </span>
+                    ) : selectedTask.status === 'running' ? (
+                      <div className="flex items-center gap-3 bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-1">
+                        <div className="text-right">
+                          <p className="text-[7px] font-black uppercase text-amber-600">Running Timer</p>
+                          <span className="font-mono text-xs font-black text-amber-700">{fmt(selectedTask.elapsedSec)}</span>
+                        </div>
+                        <button
+                          onClick={() => handleForcePause(selectedTask.id)}
+                          className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                        >
+                          Pause
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        {selectedTask.ownerId ? (
+                          <button
+                            onClick={() => handleStartTask(selectedTask.id)}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                          >
+                            Begin Timer
+                          </button>
+                        ) : (
+                          <span className="text-[9px] text-stone-400 italic">Assign owner to run</span>
+                        )}
+                        <button
+                          onClick={() => handleForceComplete(selectedTask.id)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                        >
+                          Complete Spec
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+          </section>
+
+          {/* COLUMN 3: RADAR & SYSTEM SETTINGS (3/12) */}
+          <section className="xl:col-span-3 bg-white border border-[#eae6df] rounded-3xl p-5 flex flex-col justify-between overflow-hidden shadow-md hover:shadow-md transition-shadow duration-200 relative">
+            <div className="relative space-y-6 flex-1 flex flex-col overflow-hidden">
+              {/* Tab Navigation */}
+              <div className="grid grid-cols-4 gap-1 bg-[#faf8f5] border border-[#eae6df] rounded-xl p-1 shrink-0">
+                {(['team', 'economy', 'resolutions', 'settings'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveRightTab(tab)}
+                    className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer ${
+                      activeRightTab === tab ? 'bg-[#8c7355] text-white font-bold font-headline' : 'text-stone-500 hover:text-stone-850'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* TAB 1: RADAR */}
+              {activeRightTab === 'team' && (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar animate-fade-in">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Personnel Operations</h3>
+                    <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Ticking active staff timers</p>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    {team.map(member => {
+                      const activeTasks = tasks.filter(t => t.ownerId === member.id && t.status === 'running');
+                      const currentTask = activeTasks[activeTasks.length - 1];
+                      const isRunning = !!currentTask;
+                      
+                      const efficiencyColor = 'text-[#8c7355] bg-[#8c7355]/5 border-[#8c7355]/15';
+
+                      return (
+                        <div key={member.id} className="p-4 bg-[#fcfbfa] border border-[#eae6df] rounded-2xl space-y-3 relative overflow-hidden">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <img src={member.imgUrl} className="w-8 h-8 rounded-full object-cover border border-[#eae6df]" alt="" />
+                              <div>
+                                <h4 className="text-xs font-bold text-stone-855">{member.name}</h4>
+                                <p className="text-[8px] font-black uppercase text-stone-400 mt-0.5">Dept: {member.department}</p>
+                              </div>
+                            </div>
+                            
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${efficiencyColor}`}>
+                              Eff: {Math.round((member.efficiencyScore || 1.0) * 100)}%
+                            </span>
+                          </div>
+
+                          {/* Task timer indicator */}
+                          {isRunning ? (
+                            <div className="bg-white border border-[#eae6df] p-3 rounded-xl space-y-2">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1 min-w-0 pr-2">
+                                  <p className="text-[8px] font-black text-[#8c7355] uppercase tracking-widest">Active operation</p>
+                                  <h5 className="text-[11px] font-bold text-stone-800 truncate mt-0.5">{currentTask.title}</h5>
+                                </div>
+                                <span className="font-mono text-xs font-black text-[#8c7355] shrink-0">
+                                  {fmt(currentTask.elapsedSec)}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center pt-2 border-t border-[#eae6df] gap-3">
+                                <button
+                                  onClick={() => handleForcePause(currentTask.id)}
+                                  className="flex-1 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                                >
+                                  Pause
+                                </button>
+                                <button
+                                  onClick={() => handleForceComplete(currentTask.id)}
+                                  className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                                >
+                                  Complete
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-2 text-center bg-white border border-[#eae6df] rounded-xl">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">Standby</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: ECONOMY MANAGER */}
+              {activeRightTab === 'economy' && (
+                <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar animate-fade-in">
+                  
+                  {/* Redemption Queue */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-stone-600">Redemption Queue</h4>
+                    <div className="space-y-2">
+                      {redemptions.filter(r => r.status === 'pending').map(red => (
+                        <div key={red.id} className="p-3 bg-[#fcfbfa] border border-[#eae6df] rounded-xl flex justify-between items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h5 className="text-xs font-bold text-stone-850 truncate">{red.rewards?.title}</h5>
+                            <p className="text-[8px] font-black uppercase text-stone-400 mt-0.5">By: {red.profiles?.full_name}</p>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleFulfillRedemption(red.id)}
+                            className="px-3 py-1 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer shrink-0"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      ))}
+                      {redemptions.filter(r => r.status === 'pending').length === 0 && (
+                        <p className="text-[10px] text-stone-400 italic text-center py-2">No redemptions pending.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Deploy Bounties */}
+                  <form onSubmit={handlePostBounty} className="space-y-3 border-t border-[#eae6df] pt-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-stone-600">Deploy Open Bounty</h4>
+                    <input
+                      required
+                      value={newBounty.title}
+                      onChange={e => setNewBounty(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Bounty title..."
+                      className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-bold text-[#2c241e] outline-none focus:border-[#8c7355]/40"
+                    />
+                    <textarea
+                      required
+                      value={newBounty.description}
+                      onChange={e => setNewBounty(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Task directives..."
+                      className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-medium text-[#2c241e] outline-none h-16 resize-none focus:border-[#8c7355]/40"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={newBounty.points}
+                        onChange={e => setNewBounty(prev => ({ ...prev, points: Number(e.target.value) }))}
+                        placeholder="Points..."
+                        className="flex-1 bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-black text-[#2c241e] text-center outline-none focus:border-[#8c7355]/40"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                      >
+                        Deploy
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Deploy Rewards */}
+                  <form onSubmit={handlePostReward} className="space-y-3 border-t border-[#eae6df] pt-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-stone-600">Deploy Shop Item</h4>
+                    <input
+                      required
+                      value={newReward.title}
+                      onChange={e => setNewReward(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Reward item title..."
+                      className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-bold text-[#2c241e] outline-none focus:border-[#8c7355]/40"
+                    />
+                    <input
+                      required
+                      value={newReward.description}
+                      onChange={e => setNewReward(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Item details..."
+                      className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-medium text-[#2c241e] outline-none focus:border-[#8c7355]/40"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={newReward.points}
+                        onChange={e => setNewReward(prev => ({ ...prev, points: Number(e.target.value) }))}
+                        placeholder="Point cost..."
+                        className="flex-1 bg-[#fbfaf8] border border-[#e5dfd5] rounded-xl px-4 py-2 text-xs font-black text-[#2c241e] text-center outline-none focus:border-[#8c7355]/40"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                      >
+                        Deploy Shop
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* TAB 3: DISPUTES TRIAGE */}
+              {activeRightTab === 'resolutions' && (
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar animate-fade-in">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 font-headline">Point Disputes Triage</h3>
+                    <p className="text-[8px] text-stone-400 uppercase tracking-widest font-black mt-0.5">Approve or reject staff point claims</p>
+                  </div>
+
+                  {appeals.filter(a => !a.resolved).map(appeal => (
+                    <div key={appeal.id} className="p-4 bg-white border border-[#eae6df] rounded-2xl space-y-3">
+                      <div className="flex items-center gap-3">
+                        <img src={appeal.imgUrl} className="w-8 h-8 rounded-full object-cover" alt="" />
+                        <div>
+                          <h4 className="text-xs font-bold text-stone-850">{appeal.staffName}</h4>
+                          <p className="text-[8px] font-black uppercase text-stone-400 mt-0.5">{appeal.department} · {appeal.taskTitle}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-stone-500 bg-[#fbfaf8] p-2.5 rounded-xl border border-[#eae6df] font-medium leading-relaxed">
+                        "{appeal.appealComment}"
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleResolveAppeal(appeal.id, appeal.originalPoints, 'Approved')}
+                          className="flex-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectAppeal(appeal.id, 'Disapproved')}
+                          className="flex-1 py-1.5 bg-rose-55 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {appeals.filter(a => !a.resolved).length === 0 && (
+                    <p className="text-xs text-stone-450 italic text-center py-6">No pending disputes.</p>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: GOVERNANCE SETTINGS */}
+              {activeRightTab === 'settings' && (
+                <div className="flex-1 overflow-y-auto space-y-6 pr-1 custom-scrollbar animate-fade-in">
+                  
+                  {/* Target Baseline */}
+                  <div className="p-4 bg-white border border-[#eae6df] rounded-2xl space-y-3">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-stone-500 font-headline">Global weekly threshold</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={weeklyThresholdInput}
+                        onChange={e => setWeeklyThresholdInput(Number(e.target.value))}
+                        className="flex-1 bg-[#fbfaf8] border border-[#e5dfd5] rounded-lg px-3 py-2 text-xs font-black text-[#2c241e] text-center"
+                      />
+                      <button
+                        onClick={handleSaveThreshold}
+                        className="px-4 bg-[#8c7355] hover:bg-[#7a6449] text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all duration-150 active:scale-[0.96] active:translate-y-[0.5px] cursor-pointer"
+                      >
+                        Sync
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Personnel Directory */}
+                  <div className="space-y-3">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-stone-500 font-headline">Enroll new credentials</p>
+                    <div className="p-4 bg-white border border-[#eae6df] rounded-2xl space-y-3">
+                      <input
+                        value={newStaffName}
+                        onChange={e => setNewStaffName(e.target.value)}
+                        placeholder="Full name..."
+                        className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-lg px-3 py-2 text-xs font-bold text-[#2c241e] outline-none"
+                      />
+                      <input
+                        value={newStaffDept}
+                        onChange={e => setNewStaffDept(e.target.value)}
+                        placeholder="Department..."
+                        className="w-full bg-[#fbfaf8] border border-[#e5dfd5] rounded-lg px-3 py-2 text-xs font-bold text-[#2c241e] outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          value={newStaffPass}
+                          onChange={e => setNewStaffPass(e.target.value)}
+                          placeholder="Passcode..."
+                          className="flex-1 bg-[#fbfaf8] border border-[#e5dfd5] rounded-lg px-3 py-2 text-xs font-black text-[#2c241e] text-center"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewStaffPass(Math.floor(100000 + Math.random() * 900000).toString())}
+                          className="p-2 bg-stone-100 border border-[#eae6df] rounded-lg text-stone-400 hover:text-stone-700 cursor-pointer transition-all duration-150 active:scale-90"
+                        >
+                          <span className="material-symbols-outlined text-[16px] block">refresh</span>
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleEnrollStaff}
+                        className="w-full py-2 bg-[#8c7355] hover:bg-[#7a6449] text-white font-black uppercase tracking-widest text-[9px] rounded-lg transition-colors duration-150 active:scale-[0.98] active:translate-y-[0.5px] cursor-pointer"
+                      >
+                        Deploy Credentials
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+        </div>
+      )}

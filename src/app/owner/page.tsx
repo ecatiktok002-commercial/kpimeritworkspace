@@ -194,7 +194,7 @@ export default function OwnerReconstructedDashboard() {
 
       const savedCats = localStorage.getItem('boardCategories');
       if (savedCats) {
-        const parsed = JSON.parse(savedCats).filter((c: string) => CATEGORIES.includes(c));
+        const parsed = JSON.parse(savedCats).filter((c: string) => c && c.trim());
         setCategories(parsed.length > 0 ? parsed : CATEGORIES);
       } else {
         setCategories(CATEGORIES);
@@ -484,8 +484,10 @@ export default function OwnerReconstructedDashboard() {
         }
 
         const dbCategories = mappedTasks.map(t => parseTaskMetadata(t, teamList).category);
-        const uniqueCats = Array.from(new Set([...dbCategories, ...CATEGORIES])).filter(c => CATEGORIES.includes(c));
-        setCategories(uniqueCats);
+        const savedCats = typeof window !== 'undefined' ? localStorage.getItem('boardCategories') : null;
+        const currentCats = savedCats ? JSON.parse(savedCats).filter((c: string) => c && c.trim()) : CATEGORIES;
+        const uniqueCats = Array.from(new Set([...currentCats, ...dbCategories])).filter(c => c && c.trim());
+        setCategories(uniqueCats.length > 0 ? uniqueCats : CATEGORIES);
         if (typeof window !== 'undefined') {
           localStorage.setItem('boardCategories', JSON.stringify(uniqueCats));
         }
@@ -2141,7 +2143,7 @@ export default function OwnerReconstructedDashboard() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
                   <div className="bg-[#f4f6f4] border border-[#e1e7e1] rounded-xl p-3 flex flex-col justify-center">
                     <span className="text-base font-bold text-stone-850 font-headline leading-tight">{tasks.length}</span>
-                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-550 mt-0.5">Total Specs</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-stone-550 mt-0.5">Total Task</span>
                   </div>
                   <div className="bg-[#f4f6f4] border border-[#e1e7e1] rounded-xl p-3 flex flex-col justify-center">
                     <span className="text-base font-bold text-amber-600 font-headline leading-tight">{tasks.filter(t => t.status === 'running').length}</span>
@@ -2746,7 +2748,10 @@ export default function OwnerReconstructedDashboard() {
                             </div>
                             
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${efficiencyColor}`}>
-                              Eff: {Math.round((member.efficiencyScore || 1.0) * 100)}%
+                              Points: {(() => {
+                                const memberLogs = activityLog.filter(a => a.staffId === member.id && a.type === 'points_earned');
+                                return memberLogs.reduce((sum, log) => sum + (log.points || 0), 0);
+                              })()}
                             </span>
                           </div>
 
