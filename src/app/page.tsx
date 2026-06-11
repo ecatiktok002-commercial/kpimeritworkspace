@@ -1073,30 +1073,6 @@ export default function UnifiedMeritApp() {
     fetchData();
   };
 
-  const handleDisputeTask = async (task: Task) => {
-    const msg = prompt('Provide comments for point dispute:');
-    if (!msg) return;
-
-    const newId = crypto.randomUUID();
-    const { error } = await supabase.from('appeals').insert([{
-      id: newId,
-      staff_id: authProfile?.id,
-      staff_name: authProfile?.full_name || 'Staff Member',
-      department: authProfile?.department || 'General',
-      task_title: task.title,
-      original_points: task.points,
-      appeal_comment: msg,
-      img_url: authProfile?.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${authProfile?.id}`,
-      resolved: false
-    }]);
-
-    if (error) showAlert('Submission failed', 'error');
-    else {
-      showAlert('Dispute registered.');
-      fetchData();
-    }
-  };
-
   // --- Manager Remote overrides ---
   const handleForcePause = async (taskId: string) => {
     const { error } = await supabase
@@ -3693,13 +3669,6 @@ export default function UnifiedMeritApp() {
                             </div>
 
                             <div className="flex gap-2 shrink-0">
-                              <button
-                                onClick={() => handleDisputeTask(task)}
-                                className="px-3 py-1.5 bg-white border border-[#e1e7e1] hover:border-rose-350 hover:text-rose-600 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer"
-                              >
-                                Dispute
-                              </button>
-                              
                               {task.status === 'queued' && (
                                 <button
                                   onClick={() => handleStartTask(task.id)}
