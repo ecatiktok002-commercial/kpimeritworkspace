@@ -2283,10 +2283,6 @@ export default function UnifiedMeritApp() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-black font-headline tracking-widest text-[#1a2620] uppercase">Active Command Center</h2>
-                      <span className="text-[8px] font-black uppercase bg-[#a16207]/10 text-[#a16207] border border-[#a16207]/25 px-2.5 py-1 rounded-lg tracking-widest leading-none shrink-0 flex items-center gap-1.5 shadow-sm font-headline">
-                        <span className="material-symbols-outlined text-[10px] font-bold">lock</span>
-                        Admin Overview - Exclusive
-                      </span>
                     </div>
                     <p className="text-[8px] font-black uppercase tracking-widest text-stone-500 mt-0.5 font-headline">Cross-Business Operations & Ongoing Focus</p>
                   </div>
