@@ -8,7 +8,7 @@ import type {
 } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { SEED_PROFILE, SEED_MODULES, SEED_MERIT_CONFIG, SEED_ORG_CONFIG } from '@/lib/mockDb';
-import { getKLTime, fmt, getActivePointConfig } from '@/lib/utils';
+import { getKLTime, fmt, getActivePointConfig, resolveParentTaskId } from '@/lib/utils';
 import { calculateTaskPoints, simulateAIAssessment } from '@/lib/taskEngine';
 import { assessTaskViaEdge } from '@/lib/assessTask';
 import confetti from 'canvas-confetti';
@@ -500,9 +500,10 @@ export default function OwnerReconstructedDashboard() {
             isCalibrated: t.is_calibrated,
             actualDurationMinutes: t.actual_duration_minutes,
             efficiencyScore: Number(t.efficiency_score || 1.0),
-            isFlagged: t.is_flagged,
             impact: t.impact || 'Medium',
-            complexity: t.complexity || 'Medium'
+            complexity: t.complexity || 'Medium',
+            parentTaskId: t.parent_task_id || null,
+            entityTag: t.entity_tag || null
           } as Task;
 
           const meta = parseTaskMetadata(taskObj, teamList);
@@ -928,6 +929,8 @@ export default function OwnerReconstructedDashboard() {
     const taskId = editingTask ? editingTask.id : crypto.randomUUID();
     const finalOwner = taskOwner || authProfile?.id || '00000000-0000-0000-0000-000000000000';
 
+    const linkResult = resolveParentTaskId(taskTitle, taskCategory, tasks);
+
     const taskPayload = {
       id: taskId,
       title: taskTitle,
@@ -945,7 +948,9 @@ export default function OwnerReconstructedDashboard() {
       workflow: workflowSteps,
       impact: finalImpact,
       complexity: finalComplexity,
-      commencement_date: editingTask ? editingTask.commencementDate : getKLTime()
+      commencement_date: editingTask ? editingTask.commencementDate : getKLTime(),
+      parent_task_id: editingTask ? editingTask.parentTaskId : linkResult.parentTaskId,
+      entity_tag: editingTask ? editingTask.entityTag : linkResult.entityTag
     };
 
     const { error } = await supabase.from('tasks').upsert([taskPayload]);
@@ -1552,6 +1557,8 @@ export default function OwnerReconstructedDashboard() {
       });
     }
 
+    const linkResult = resolveParentTaskId(cleanTitle, category, tasks);
+
     const newId = crypto.randomUUID();
     const newTask: Task = {
       id: newId,
@@ -1568,7 +1575,9 @@ export default function OwnerReconstructedDashboard() {
       collaboratorIds: [],
       workflow: [],
       impact: 'Medium',
-      complexity: 'Medium'
+      complexity: 'Medium',
+      parentTaskId: linkResult.parentTaskId,
+      entityTag: linkResult.entityTag
     };
 
     const taskPayload = {
@@ -1586,7 +1595,9 @@ export default function OwnerReconstructedDashboard() {
       workflow: [],
       impact: 'Medium',
       complexity: 'Medium',
-      commencement_date: getKLTime()
+      commencement_date: getKLTime(),
+      parent_task_id: linkResult.parentTaskId,
+      entity_tag: linkResult.entityTag
     };
 
     setTasks(prev => [newTask, ...prev]);
@@ -1979,20 +1990,6 @@ export default function OwnerReconstructedDashboard() {
           <div>
             <h1 className="text-base font-black font-headline uppercase tracking-widest text-[#1a2620] flex items-center gap-2">
               KPI Merit 
-              {authProfile?.is_manager ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] bg-[#406c58]/10 border border-[#406c58]/20 text-[#406c58] font-bold px-2.5 py-0.5 rounded-full uppercase">CEO Suite</span>
-                  <a
-                    href="/"
-                    className="text-[9px] bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase cursor-pointer transition-all active:scale-95 animate-pulse"
-                    title="Switch to Staff Dashboard View"
-                  >
-                    Staff Dashboard
-                  </a>
-                </div>
-              ) : (
-                <span className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase">Staff Dashboard</span>
-              )}
             </h1>
             <p className="text-[8px] uppercase tracking-widest font-black text-stone-400">Core Performance</p>
           </div>
@@ -4004,7 +4001,7 @@ export default function OwnerReconstructedDashboard() {
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-stone-500 block mb-2">Invite Members</label>
                   <div className="max-h-24 overflow-y-auto border border-[#d8e2d8] rounded-xl p-2.5 space-y-1 bg-[#f4f6f4] custom-scrollbar">
-                    {team.filter(staff => staff.id !== authProfile?.id).map(staff => {
+                    {team.map(staff => {
                       const isChecked = selectedCollabs.includes(staff.id);
                       return (
                         <label key={staff.id} className="flex items-center gap-2 text-xs text-[#1a2620] font-semibold cursor-pointer select-none">
@@ -4020,11 +4017,11 @@ export default function OwnerReconstructedDashboard() {
                             }}
                             className="rounded border-[#d8e2d8] text-[#406c58] focus:ring-[#406c58]/40"
                           />
-                          <span>{staff.name}</span>
+                          <span>{staff.name} {staff.id === authProfile?.id ? "(Me)" : ""}</span>
                         </label>
                       );
                     })}
-                    {team.filter(staff => staff.id !== authProfile?.id).length === 0 && (
+                    {team.length === 0 && (
                       <span className="text-[10px] text-stone-400 italic">No other team members found.</span>
                     )}
                   </div>
@@ -4123,9 +4120,9 @@ export default function OwnerReconstructedDashboard() {
                       </div>
                       
                       {isContinuous && (
-                        <div className="flex gap-4 pl-6 pt-1 border-t border-stone-200/50 mt-1">
+                        <div className="flex flex-wrap gap-2.5 pl-3 pt-1 border-t border-stone-200/50 mt-1">
                           {['daily', 'weekly', 'monthly'].map((type) => (
-                            <label key={type} className="flex items-center gap-1.5 text-xs text-[#1a2620] font-bold cursor-pointer capitalize">
+                            <label key={type} className="flex items-center gap-1 text-[11px] text-[#1a2620] font-bold cursor-pointer capitalize">
                               <input
                                 type="radio"
                                 name="routineType"

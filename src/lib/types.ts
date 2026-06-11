@@ -51,6 +51,8 @@ export interface Task {
   completedAt?: string;
   category?: string;
   initiative?: string;
+  parentTaskId?: string | null;
+  entityTag?: string | null;
 }
 
 export interface TaskDefinition {

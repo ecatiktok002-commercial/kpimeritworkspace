@@ -2,6 +2,39 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Task, TeamMember } from '@/lib/types';
+import { supabase } from '@/lib/supabaseClient';
+
+const mapDbTaskToClientTask = (t: any, teamList: TeamMember[]): Task => {
+  return {
+    id: t.id,
+    title: t.title,
+    note: t.note || '',
+    totalSec: t.total_sec || 0,
+    elapsedSec: t.elapsed_sec || 0,
+    status: t.status,
+    tierName: t.tier_name,
+    tierVal: Number(t.tier_val || 1.0),
+    points: t.points,
+    commencementDate: t.commencement_date || t.created_at,
+    lastCompletedDate: t.completed_at,
+    completedAt: t.completed_at,
+    managerViewed: t.manager_viewed,
+    ownerId: t.staff_id,
+    collaboratorIds: t.collaborator_ids || [],
+    collaborators: t.collaborators || [],
+    frequency: t.frequency || { type: 'once' },
+    isContinuous: t.is_continuous || false,
+    workflow: t.workflow || [],
+    goldenRuleMinutes: t.golden_rule_minutes,
+    isCalibrated: t.is_calibrated,
+    actualDurationMinutes: t.actual_duration_minutes,
+    efficiencyScore: Number(t.efficiency_score || 1.0),
+    impact: t.impact || 'Medium',
+    complexity: t.complexity || 'Medium',
+    parentTaskId: t.parent_task_id || null,
+    entityTag: t.entity_tag || null
+  } as Task;
+};
 
 interface MacroViewGraphProps {
   tasks: Task[];
@@ -24,6 +57,7 @@ interface GraphNode {
   status?: string;
   taskObj?: Task;
   queuedCount?: number;
+  isGhost?: boolean;
 }
 
 interface GraphLink {
@@ -110,6 +144,9 @@ const SPECIAL_PARENT_ROUTES: Record<string, string> = {
 export default function MacroViewGraph({ tasks, categories, team, onClose, onEditTask }: MacroViewGraphProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
+  const [fadingTaskIds, setFadingTaskIds] = useState<Set<string>>(new Set());
+  const [showCompleted, setShowCompleted] = useState(false);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -123,6 +160,143 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
 
   // Dragging node states
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+
+  // Sync prop changes
+  useEffect(() => {
+    setLocalTasks(prevTasks => {
+      if (prevTasks.length === 0) {
+        return tasks;
+      }
+      
+      const newFading = new Set<string>();
+      const updatedTasksList = prevTasks.map(prevT => {
+        const newT = tasks.find(t => t.id === prevT.id);
+        if (!newT) {
+          newFading.add(prevT.id);
+          return prevT;
+        }
+        if (prevT.status !== 'completed' && newT.status === 'completed') {
+          const hasActiveChild = tasks.some(t => t.parentTaskId === newT.id && t.status !== 'completed');
+          if (!hasActiveChild) {
+            newFading.add(newT.id);
+          }
+        }
+        return newT;
+      });
+
+      if (newFading.size > 0) {
+        setFadingTaskIds(prev => {
+          const next = new Set(prev);
+          newFading.forEach(id => next.add(id));
+          return next;
+        });
+        setTimeout(() => {
+          setLocalTasks(curr => curr.filter(t => !newFading.has(t.id)));
+          setFadingTaskIds(prev => {
+            const next = new Set(prev);
+            newFading.forEach(id => next.delete(id));
+            return next;
+          });
+        }, 300);
+      }
+      
+      const newAdded = tasks.filter(t => !prevTasks.some(pt => pt.id === t.id));
+      return [...updatedTasksList.filter(t => !newAdded.some(na => na.id === t.id)), ...newAdded];
+    });
+  }, [tasks]);
+
+  // Real-time Supabase subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('macro-view-tasks-sync')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newTask = mapDbTaskToClientTask(payload.new, team);
+            setLocalTasks(prev => {
+              if (prev.some(t => t.id === newTask.id)) return prev;
+              return [...prev, newTask];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedTask = mapDbTaskToClientTask(payload.new, team);
+            const prevTask = localTasks.find(t => t.id === updatedTask.id);
+            if (prevTask && prevTask.status !== 'completed' && updatedTask.status === 'completed') {
+              const hasActiveChild = localTasks.some(t => t.parentTaskId === updatedTask.id && t.status !== 'completed' && t.id !== updatedTask.id);
+              if (!hasActiveChild) {
+                setFadingTaskIds(prev => {
+                  const next = new Set(prev);
+                  next.add(updatedTask.id);
+                  return next;
+                });
+                setTimeout(() => {
+                  setLocalTasks(prevList => prevList.filter(t => t.id !== updatedTask.id));
+                  setFadingTaskIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(updatedTask.id);
+                    return next;
+                  });
+                }, 300);
+              }
+            }
+            setLocalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            setFadingTaskIds(prev => {
+              const next = new Set(prev);
+              next.add(deletedId);
+              return next;
+            });
+            setTimeout(() => {
+              setLocalTasks(prev => prev.filter(t => t.id !== deletedId));
+              setFadingTaskIds(prev => {
+                const next = new Set(prev);
+                next.delete(deletedId);
+                return next;
+              });
+            }, 300);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [team, localTasks]);
+
+  // Load completed tasks when toggle is ON
+  useEffect(() => {
+    if (showCompleted) {
+      const fetchCompletedTasks = async () => {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('status', 'completed')
+          .order('completed_at', { ascending: false });
+
+        if (data && !error) {
+          const fetchedClientTasks = data.map(t => mapDbTaskToClientTask(t, team));
+          setLocalTasks(prev => {
+            const prevIds = new Set(prev.map(t => t.id));
+            const merged = [...prev];
+            fetchedClientTasks.forEach(t => {
+              if (!prevIds.has(t.id)) {
+                merged.push(t);
+              }
+            });
+            return merged;
+          });
+        }
+      };
+      fetchCompletedTasks();
+    }
+  }, [showCompleted, team]);
 
   // Initialize graph nodes and links (dynamic constellation layout from real categories)
   useEffect(() => {
@@ -180,7 +354,7 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
       const pos = hubCoords[cat];
       if (!pos) return;
 
-      const catQueuedTasks = tasks.filter(t => t.status === 'queued' && parseTaskCategory(t, team) === cat);
+      const catQueuedTasks = localTasks.filter(t => t.status === 'queued' && parseTaskCategory(t, team) === cat);
       const queuedCount = catQueuedTasks.length;
       const catNodeSize = 18 + Math.min(12, queuedCount * 1.5);
 
@@ -205,46 +379,140 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
         newLinks.push({ source: 'core', target: catId });
       }
 
-      // Create Task Nodes (only queued, running, and paused)
-      const catActiveTasks = tasks.filter(t => 
-        (t.status === 'queued' || t.status === 'running' || t.status === 'paused') && 
+      // Create Task Nodes (only queued, running, paused, and fading out)
+      const catActiveTasks = localTasks.filter(t => 
+        (t.status === 'queued' || t.status === 'running' || t.status === 'paused' || fadingTaskIds.has(t.id)) && 
         parseTaskCategory(t, team) === cat
       );
 
-      catActiveTasks.forEach((task, taskIndex) => {
-        const taskAngle = (taskIndex / catActiveTasks.length) * 2 * Math.PI;
-        const R_task = 50;
-        const taskId = `task-${task.id}`;
+      // Find completed parent tasks of any active tasks in the category to serve as Ghost Anchors
+      const activeTaskParentIds = new Set(catActiveTasks.map(t => t.parentTaskId).filter(Boolean));
+      const ghostParentTasks = localTasks.filter(t => 
+        t.status === 'completed' && 
+        !fadingTaskIds.has(t.id) &&
+        activeTaskParentIds.has(t.id) && 
+        parseTaskCategory(t, team) === cat
+      );
 
-        let taskColor = '#64748b';
-        if (task.status === 'running') taskColor = '#10b981';
-        else if (task.status === 'paused') taskColor = '#f59e0b';
+      // Separate into Layer 3 (Parent) and Layer 4 (Child) tasks
+      const activeParentTasks = catActiveTasks.filter(t => 
+        !t.parentTaskId || !localTasks.some(pt => pt.id === t.parentTaskId)
+      );
 
-        const taskX = pos.x + R_task * Math.cos(taskAngle);
-        const taskY = pos.y + R_task * Math.sin(taskAngle);
+      // Combine active parent tasks and ghost parent tasks for Layer 3
+      const allLayer3Tasks = [...activeParentTasks, ...ghostParentTasks];
+
+      const layer4Tasks = catActiveTasks.filter(t => 
+        t.parentTaskId && allLayer3Tasks.some(pt => pt.id === t.parentTaskId)
+      );
+
+      const R_parent = 75; // Primary orbit radius
+      const R_child = 22;  // Secondary orbit radius
+
+      allLayer3Tasks.forEach((parentTask, parentIndex) => {
+        const parentAngle = (parentIndex / allLayer3Tasks.length) * 2 * Math.PI;
+        const parentTaskId = `task-${parentTask.id}`;
+        const isGhost = parentTask.status === 'completed';
+
+        let parentColor = '#64748b';
+        if (isGhost) parentColor = '#475569';
+        else if (parentTask.status === 'running') parentColor = '#10b981';
+        else if (parentTask.status === 'paused') parentColor = '#f59e0b';
+
+        const parentX = pos.x + R_parent * Math.cos(parentAngle);
+        const parentY = pos.y + R_parent * Math.sin(parentAngle);
 
         newNodes.push({
-          id: taskId,
-          label: task.title,
-          x: taskX,
-          y: taskY,
+          id: parentTaskId,
+          label: parentTask.title,
+          x: parentX,
+          y: parentY,
           vx: 0,
           vy: 0,
-          size: 6,
-          color: taskColor,
+          size: 10, // Medium-sized node for Layer 3 Parent Task
+          color: parentColor,
           type: 'task',
-          status: task.status,
-          taskObj: task,
+          status: isGhost ? 'completed' : parentTask.status,
+          taskObj: parentTask,
+          isGhost: isGhost
         });
 
-        newLinks.push({ source: catId, target: taskId });
+        newLinks.push({ source: catId, target: parentTaskId });
+
+        // Child Task Satellites around this Parent node
+        const children = layer4Tasks.filter(c => c.parentTaskId === parentTask.id);
+        children.forEach((childTask, childIndex) => {
+          const childAngle = (childIndex / children.length) * 2 * Math.PI;
+          const childTaskId = `task-${childTask.id}`;
+
+          let childColor = '#64748b';
+          if (childTask.status === 'running') childColor = '#10b981';
+          else if (childTask.status === 'paused') childColor = '#f59e0b';
+
+          const childX = parentX + R_child * Math.cos(childAngle);
+          const childY = parentY + R_child * Math.sin(childAngle);
+
+          newNodes.push({
+            id: childTaskId,
+            label: childTask.title,
+            x: childX,
+            y: childY,
+            vx: 0,
+            vy: 0,
+            size: 5, // Smallest node for Layer 4 Child Task
+            color: childColor,
+            type: 'task',
+            status: childTask.status,
+            taskObj: childTask,
+          });
+
+          newLinks.push({ source: parentTaskId, target: childTaskId });
+        });
+      });
+
+      // Create completed task nodes (only if showCompleted is true)
+      let catCompletedTasks: Task[] = [];
+      if (showCompleted) {
+        catCompletedTasks = localTasks.filter(t => 
+          t.status === 'completed' && 
+          parseTaskCategory(t, team) === cat &&
+          !ghostParentTasks.some(gpt => gpt.id === t.id)
+        );
+      }
+
+      catCompletedTasks.forEach((completedTask, compIndex) => {
+        const compAngle = (compIndex / catCompletedTasks.length) * 2 * Math.PI;
+        const compTaskId = `task-completed-${completedTask.id}`;
+
+        const compX = pos.x + 125 * Math.cos(compAngle);
+        const compY = pos.y + 125 * Math.sin(compAngle);
+
+        newNodes.push({
+          id: compTaskId,
+          label: completedTask.title,
+          x: compX,
+          y: compY,
+          vx: 0,
+          vy: 0,
+          size: 6, // 60% the size of active Layer 3 nodes (size: 10)
+          color: '#8892B0', // starlight silver / slate blue
+          type: 'task',
+          status: 'completed',
+          taskObj: completedTask,
+        });
+
+        newLinks.push({ source: catId, target: compTaskId });
       });
     });
 
     setNodes(newNodes);
     setLinks(newLinks);
-    setSelectedNode(coreNode);
-  }, [tasks, categories, team]);
+    setSelectedNode(prev => {
+      if (!prev) return coreNode;
+      const found = newNodes.find(n => n.id === prev.id);
+      return found || coreNode;
+    });
+  }, [localTasks, categories, team, fadingTaskIds, showCompleted]);
 
   // Handlers for canvas mouse events (Pan & zoom & drag)
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -286,6 +554,13 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
     setDraggedNodeId(null);
   };
 
+  const startDragNode = (e: React.MouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    setDraggedNodeId(nodeId);
+    const clickedNode = nodes.find(n => n.id === nodeId);
+    if (clickedNode) setSelectedNode(clickedNode);
+  };
+
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
     const scaleFactor = 0.05;
@@ -293,13 +568,6 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
       ? Math.min(3, zoom + scaleFactor) 
       : Math.max(0.2, zoom - scaleFactor);
     setZoom(nextZoom);
-  };
-
-  const startDragNode = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
-    setDraggedNodeId(nodeId);
-    const clickedNode = nodes.find(n => n.id === nodeId);
-    if (clickedNode) setSelectedNode(clickedNode);
   };
 
   const zoomIn = () => setZoom(prev => Math.min(3, prev + 0.2));
@@ -318,6 +586,40 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
       if (!source || !target) return null;
 
       const isSpecificRoute = link.source === 'cat-ECA HQ' && link.target === 'cat-ECA Rental - E-hailing';
+      const isParentToChild = source.type === 'task' && target.type === 'task';
+      const isHubToParent = source.type === 'category' && target.type === 'task';
+
+      const isHistoricalCompleted = (source.status === 'completed' && !source.isGhost) || 
+                                     (target.status === 'completed' && !target.isGhost);
+
+      let strokeColor = 'url(#edge-grad)';
+      let width = 1.4;
+      let opacity = 0.8;
+
+      if (isHistoricalCompleted) {
+        strokeColor = '#8892B0';
+        width = 0.5;
+        opacity = 0.08;
+      } else if (isSpecificRoute) {
+        strokeColor = '#0d9488';
+        width = 2.5;
+        opacity = 0.95;
+      } else if (isParentToChild) {
+        strokeColor = '#94a3b8'; // slate 400
+        width = 0.7;
+        opacity = 0.45;
+      } else if (isHubToParent) {
+        strokeColor = 'url(#edge-grad)';
+        width = 1.6;
+        opacity = 0.85;
+      } else if (source.type === 'core' || target.type === 'core') {
+        strokeColor = 'url(#edge-grad)';
+        width = 2.2;
+        opacity = 0.9;
+      }
+
+      const isFading = (source.taskObj && fadingTaskIds.has(source.taskObj.id)) || 
+                       (target.taskObj && fadingTaskIds.has(target.taskObj.id));
 
       return (
         <line
@@ -326,22 +628,25 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
           y1={source.y}
           x2={target.x}
           y2={target.y}
-          stroke={isSpecificRoute ? '#0d9488' : 'url(#edge-grad)'}
-          strokeWidth={isSpecificRoute ? 2.5 : source.type === 'core' || target.type === 'core' ? 1.5 : 0.8}
-          strokeOpacity={isSpecificRoute ? 0.85 : 0.45}
+          stroke={strokeColor}
+          strokeWidth={width}
+          strokeOpacity={isFading ? 0 : opacity}
+          style={{
+            transition: 'x1 0.3s ease-in-out, y1 0.3s ease-in-out, x2 0.3s ease-in-out, y2 0.3s ease-in-out, stroke-opacity 0.3s ease-in-out'
+          }}
           markerEnd={isSpecificRoute ? 'url(#arrow)' : undefined}
         />
       );
     }).filter(Boolean);
-  }, [nodes, links]);
+  }, [nodes, links, fadingTaskIds]);
 
   // Statistics calculation
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const running = tasks.filter(t => t.status === 'running').length;
-    const paused = tasks.filter(t => t.status === 'paused').length;
-    const queued = tasks.filter(t => t.status === 'queued').length;
+    const total = localTasks.length;
+    const completed = localTasks.filter(t => t.status === 'completed').length;
+    const running = localTasks.filter(t => t.status === 'running').length;
+    const paused = localTasks.filter(t => t.status === 'paused').length;
+    const queued = localTasks.filter(t => t.status === 'queued').length;
     return {
       total,
       completed,
@@ -350,7 +655,7 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
       queued,
       percent: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [tasks]);
+  }, [localTasks]);
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-all duration-300">
@@ -426,9 +731,9 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
 
               {/* Glowing gradient for edges */}
               <linearGradient id="edge-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#1e293b" stopOpacity="0.1" />
-                <stop offset="50%" stopColor="#334155" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.4" />
+                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.4" />
               </linearGradient>
 
               {/* Specific Route Arrow Marker */}
@@ -463,6 +768,9 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
                       transform={`translate(${node.x}, ${node.y})`}
                       onMouseDown={(e) => startDragNode(e, node.id)}
                       className="cursor-pointer"
+                      style={{
+                        transition: draggedNodeId === node.id ? 'none' : 'transform 0.3s ease-in-out'
+                      }}
                     >
                       <circle 
                         r={node.size + 6} 
@@ -506,6 +814,9 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
                       transform={`translate(${node.x}, ${node.y})`}
                       onMouseDown={(e) => startDragNode(e, node.id)}
                       className="cursor-pointer"
+                      style={{
+                        transition: draggedNodeId === node.id ? 'none' : 'transform 0.3s ease-in-out'
+                      }}
                     >
                       {/* Pulse Ring for pending tasks */}
                       {node.queuedCount && node.queuedCount > 0 ? (
@@ -553,6 +864,16 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
 
                 // Task Satellites Node (Strict Rule: completely blank, minimalistic dots color-coded by status)
                 if (node.type === 'task') {
+                  const isGhost = node.isGhost;
+                  const isFading = node.taskObj ? fadingTaskIds.has(node.taskObj.id) : false;
+                  const isHistoricalCompleted = node.status === 'completed' && !isGhost;
+                  const isHovered = hoveredTaskNode?.id === node.id;
+
+                  let opacityVal = isGhost ? 0.45 : 1;
+                  if (isHistoricalCompleted) {
+                    opacityVal = isHovered ? 1 : 0.6;
+                  }
+
                   return (
                     <g 
                       key={node.id} 
@@ -561,15 +882,40 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
                       onMouseEnter={() => setHoveredTaskNode(node)}
                       onMouseLeave={() => setHoveredTaskNode(null)}
                       className="cursor-pointer"
+                      style={{
+                        transition: draggedNodeId === node.id ? 'none' : 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
+                        opacity: isFading ? 0 : opacityVal
+                      }}
                     >
-                      <circle 
-                        r={node.size} 
-                        fill={node.color} 
-                        stroke={isSelected ? "#f8fafc" : node.color} 
-                        strokeWidth={isSelected ? "2" : "0"} 
-                        filter="url(#glow-task)"
-                        className="transition-all hover:scale-150 hover:brightness-125"
-                      />
+                      {isGhost ? (
+                        <circle 
+                          r={node.size} 
+                          fill="rgba(71, 85, 105, 0.05)" 
+                          stroke={node.color} 
+                          strokeWidth="1.5" 
+                          strokeDasharray="3 3"
+                          strokeOpacity="0.45"
+                          className="transition-all hover:scale-150"
+                        />
+                      ) : isHistoricalCompleted ? (
+                        <circle 
+                          r={node.size} 
+                          fill="#8892B0"
+                          stroke="rgba(255, 255, 255, 0.2)"
+                          strokeWidth="1"
+                          filter={isHovered ? "url(#glow-task)" : undefined}
+                          className="transition-all hover:scale-150 hover:fill-slate-100"
+                        />
+                      ) : (
+                        <circle 
+                          r={node.size} 
+                          fill={node.color} 
+                          stroke={isSelected ? "#f8fafc" : node.color} 
+                          strokeWidth={isSelected ? "2" : "0"} 
+                          filter="url(#glow-task)"
+                          className="transition-all hover:scale-150 hover:brightness-125"
+                        />
+                      )}
                     </g>
                   );
                 }
@@ -613,6 +959,16 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
                   <p className="text-[9px] text-slate-300 leading-normal break-words font-medium whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar">
                     {hoveredTaskNode.taskObj.note.split('=== METADATA ===')[0].trim() || 'No additional directives.'}
                   </p>
+                </div>
+              )}
+
+              {/* Entity Tag */}
+              {hoveredTaskNode.taskObj.entityTag && (
+                <div className="mb-2.5">
+                  <span className="text-[7px] font-black uppercase tracking-wider text-slate-550 block mb-0.5 font-headline">Entity Tag</span>
+                  <span className="inline-block text-[9px] font-black uppercase tracking-widest text-[#22d3ee] bg-[#22d3ee]/10 px-2 py-0.5 rounded border border-[#22d3ee]/20">
+                    {hoveredTaskNode.taskObj.entityTag}
+                  </span>
                 </div>
               )}
 
@@ -698,6 +1054,17 @@ export default function MacroViewGraph({ tasks, categories, team, onClose, onEdi
             <div className="border-t border-slate-800 pt-6 space-y-4">
               <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-headline">Node Inspector</h5>
               
+              {/* Show Historical Orbit (Completed) Switch */}
+              <div className="flex items-center justify-between p-3 bg-slate-900/40 border border-slate-800/80 rounded-2xl">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 font-headline">Show Historical Orbit</span>
+                <button
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className={`w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer outline-none ${showCompleted ? 'bg-cyan-500' : 'bg-slate-700'}`}
+                >
+                  <div className={`w-3 h-3 rounded-full bg-slate-100 transition-transform ${showCompleted ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
               {selectedNode ? (
                 <div className="p-4 bg-slate-900/40 border border-slate-800/70 rounded-2xl space-y-3.5 text-left animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">

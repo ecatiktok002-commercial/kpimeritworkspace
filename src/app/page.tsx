@@ -8,7 +8,7 @@ import type {
 } from '@/lib/types';
 import { supabase } from '@/lib/supabaseClient';
 import { SEED_PROFILE, SEED_MODULES, SEED_MERIT_CONFIG, SEED_ORG_CONFIG } from '@/lib/mockDb';
-import { getKLTime, fmt, getActivePointConfig } from '@/lib/utils';
+import { getKLTime, fmt, getActivePointConfig, resolveParentTaskId } from '@/lib/utils';
 import { calculateTaskPoints, simulateAIAssessment } from '@/lib/taskEngine';
 import { assessTaskViaEdge } from '@/lib/assessTask';
 import confetti from 'canvas-confetti';
@@ -515,9 +515,10 @@ export default function UnifiedMeritApp() {
             isCalibrated: t.is_calibrated,
             actualDurationMinutes: t.actual_duration_minutes,
             efficiencyScore: Number(t.efficiency_score || 1.0),
-            isFlagged: t.is_flagged,
             impact: t.impact || 'Medium',
-            complexity: t.complexity || 'Medium'
+            complexity: t.complexity || 'Medium',
+            parentTaskId: t.parent_task_id || null,
+            entityTag: t.entity_tag || null
           } as Task;
 
           const meta = parseTaskMetadata(taskObj, teamList);
@@ -758,6 +759,8 @@ export default function UnifiedMeritApp() {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('authProfile');
     localStorage.removeItem('activeView');
+    localStorage.removeItem('owner_isLoggedIn');
+    localStorage.removeItem('owner_authProfile');
   };
 
   // --- Profile Avatar Upload / Delete / Save ---
@@ -940,11 +943,12 @@ export default function UnifiedMeritApp() {
       finalComplexity
     );
 
-    // Auto-classify the function tag from the task title instead of using the manual dropdown
     const autoClassified = autoClassifyTask(taskTitle);
     const formattedNote = formatNoteWithMetadata(taskNote, taskCategory, autoClassified.initiative);
     const taskId = editingTask ? editingTask.id : crypto.randomUUID();
     const finalOwner = taskOwner || authProfile?.id || '00000000-0000-0000-0000-000000000000';
+
+    const linkResult = resolveParentTaskId(taskTitle, taskCategory, tasks);
 
     const taskPayload = {
       id: taskId,
@@ -963,7 +967,9 @@ export default function UnifiedMeritApp() {
       workflow: workflowSteps,
       impact: finalImpact,
       complexity: finalComplexity,
-      commencement_date: editingTask ? editingTask.commencementDate : getKLTime()
+      commencement_date: editingTask ? editingTask.commencementDate : getKLTime(),
+      parent_task_id: editingTask ? editingTask.parentTaskId : linkResult.parentTaskId,
+      entity_tag: editingTask ? editingTask.entityTag : linkResult.entityTag
     };
 
     const { error } = await supabase.from('tasks').upsert([taskPayload]);
@@ -1568,6 +1574,8 @@ export default function UnifiedMeritApp() {
       });
     }
 
+    const linkResult = resolveParentTaskId(cleanTitle, category, tasks);
+
     const newId = crypto.randomUUID();
     const newTask: Task = {
       id: newId,
@@ -1584,7 +1592,9 @@ export default function UnifiedMeritApp() {
       collaboratorIds: [],
       workflow: [],
       impact: 'Medium',
-      complexity: 'Medium'
+      complexity: 'Medium',
+      parentTaskId: linkResult.parentTaskId,
+      entityTag: linkResult.entityTag
     };
 
     const taskPayload = {
@@ -1602,7 +1612,9 @@ export default function UnifiedMeritApp() {
       workflow: [],
       impact: 'Medium',
       complexity: 'Medium',
-      commencement_date: getKLTime()
+      commencement_date: getKLTime(),
+      parent_task_id: linkResult.parentTaskId,
+      entity_tag: linkResult.entityTag
     };
 
     setTasks(prev => [newTask, ...prev]);
@@ -1996,24 +2008,6 @@ export default function UnifiedMeritApp() {
           <div>
             <h1 className="text-base font-black font-headline uppercase tracking-widest text-[#1a2620] flex items-center gap-2">
               KPI Merit 
-              {authProfile?.is_manager ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] bg-[#406c58]/10 border border-[#406c58]/20 text-[#406c58] font-bold px-2.5 py-0.5 rounded-full uppercase">CEO Suite</span>
-                  <button
-                    onClick={() => setDashboardViewMode('staff')}
-                    className={`text-[9px] border font-bold px-2.5 py-0.5 rounded-full uppercase cursor-pointer transition-all active:scale-95 ${
-                      dashboardViewMode === 'staff'
-                        ? 'bg-[#406c58] text-white border-[#406c58]'
-                        : 'bg-stone-100 border-stone-200 text-stone-600 hover:bg-stone-200'
-                    }`}
-                    title="Switch to Staff Dashboard View"
-                  >
-                    Staff Dashboard
-                  </button>
-                </div>
-              ) : (
-                <span className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase">Staff Dashboard</span>
-              )}
             </h1>
             <p className="text-[8px] uppercase tracking-widest font-black text-stone-400">Core Performance</p>
           </div>
@@ -2454,7 +2448,16 @@ export default function UnifiedMeritApp() {
                                   {queuedTasks.map(task => {
                                     const owner = team.find(m => m.id === task.ownerId);
                                     return (
-                                      <div key={task.id} onClick={() => setSelectedTask(task)} className={`p-3 ${theme.bg} hover:bg-stone-50/55 border border-[#e1e7e1]/80 hover:border-[#406c58] rounded-xl cursor-pointer transition-all duration-155 space-y-1.5 shadow-sm`}>
+                                      <div
+                                        key={task.id}
+                                        draggable={true}
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.setData('text/plain', task.id);
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        onClick={() => setSelectedTask(task)}
+                                        className={`p-3 ${theme.bg} hover:bg-stone-50/55 border border-[#e1e7e1]/80 hover:border-[#406c58] rounded-xl cursor-grab active:cursor-grabbing transition-all duration-155 space-y-1.5 shadow-sm active:scale-[0.98] active:translate-y-[0.5px]`}
+                                      >
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="flex items-start gap-2 min-w-0 flex-1">
                                             <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-stone-350" />
@@ -4046,7 +4049,7 @@ export default function UnifiedMeritApp() {
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-stone-500 block mb-2">Invite Members</label>
                   <div className="max-h-24 overflow-y-auto border border-[#d8e2d8] rounded-xl p-2.5 space-y-1 bg-[#f4f6f4] custom-scrollbar">
-                    {team.filter(staff => staff.id !== authProfile?.id).map(staff => {
+                    {team.map(staff => {
                       const isChecked = selectedCollabs.includes(staff.id);
                       return (
                         <label key={staff.id} className="flex items-center gap-2 text-xs text-[#1a2620] font-semibold cursor-pointer select-none">
@@ -4062,11 +4065,11 @@ export default function UnifiedMeritApp() {
                             }}
                             className="rounded border-[#d8e2d8] text-[#406c58] focus:ring-[#406c58]/40"
                           />
-                          <span>{staff.name}</span>
+                          <span>{staff.name} {staff.id === authProfile?.id ? "(Me)" : ""}</span>
                         </label>
                       );
                     })}
-                    {team.filter(staff => staff.id !== authProfile?.id).length === 0 && (
+                    {team.length === 0 && (
                       <span className="text-[10px] text-stone-400 italic">No other team members found.</span>
                     )}
                   </div>
@@ -4165,9 +4168,9 @@ export default function UnifiedMeritApp() {
                       </div>
                       
                       {isContinuous && (
-                        <div className="flex gap-4 pl-6 pt-1 border-t border-stone-200/50 mt-1">
+                        <div className="flex flex-wrap gap-2.5 pl-3 pt-1 border-t border-stone-200/50 mt-1">
                           {['daily', 'weekly', 'monthly'].map((type) => (
-                            <label key={type} className="flex items-center gap-1.5 text-xs text-[#1a2620] font-bold cursor-pointer capitalize">
+                            <label key={type} className="flex items-center gap-1 text-[11px] text-[#1a2620] font-bold cursor-pointer capitalize">
                               <input
                                 type="radio"
                                 name="routineType"

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { calculateTaskPoints } from '@/lib/taskEngine';
 import type { Task, ActivityLog, MeritConfig, StaffProfile, TaskFrequency, TaskDefinition, UserAuthProfile, ImpactLevel, ComplexityLevel } from '@/lib/types';
-import { getKLTime, getActivePointConfig } from '@/lib/utils';
+import { getKLTime, getActivePointConfig, resolveParentTaskId } from '@/lib/utils';
 
 export function useTaskLifecycle(
   authProfile: UserAuthProfile | null,
@@ -76,7 +76,9 @@ export function useTaskLifecycle(
       collaborators: task.collaborators,
       completed_at: task.completedAt,
       impact: task.impact,
-      complexity: task.complexity
+      complexity: task.complexity,
+      parent_task_id: task.parentTaskId || null,
+      entity_tag: task.entityTag || null
     };
   }, [authProfile]);
 
@@ -447,6 +449,19 @@ export function useTaskLifecycle(
       assessedComplexity
     );
     const currentUserId = authProfile?.id;
+
+    let category = 'ECA HQ';
+    if (note && note.includes('=== METADATA ===')) {
+      const parts = note.split('=== METADATA ===');
+      const meta = parts[parts.length - 1];
+      const catMatch = meta.match(/category:\s*(.+)/);
+      if (catMatch) category = catMatch[1].trim();
+    } else {
+      const titleMatch = title.match(/^\[([^\]]+)\]/);
+      if (titleMatch) category = titleMatch[1].trim();
+    }
+
+    const linkResult = resolveParentTaskId(title, category, tasks);
     
     const task: Task = {
       id: editingTask ? editingTask.id : crypto.randomUUID(),
@@ -468,7 +483,9 @@ export function useTaskLifecycle(
       isCalibrated: definition?.isCalibrated,
       managerViewed: editingTask ? editingTask.managerViewed : false,
       impact: calc.impact,
-      complexity: calc.complexity
+      complexity: calc.complexity,
+      parentTaskId: editingTask ? editingTask.parentTaskId : linkResult.parentTaskId,
+      entityTag: editingTask ? editingTask.entityTag : linkResult.entityTag
     };
 
     if (editingTask) {
@@ -479,7 +496,7 @@ export function useTaskLifecycle(
     }
 
     supabase.from('tasks').upsert([mapTaskToDB(task)]).then();
-  }, [authProfile, profile.name, editingTask, taskDefinitions, meritConfig, mapTaskToDB]);
+  }, [authProfile, profile.name, editingTask, taskDefinitions, meritConfig, mapTaskToDB, tasks]);
 
   const toggleWorkflowStep = (taskId: string, stepId: string) => {
     registerActivity();

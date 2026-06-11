@@ -1,4 +1,4 @@
-import { MeritConfig, AiPointConfig } from './types';
+import { MeritConfig, AiPointConfig, Task } from './types';
 
 export const getKLTime = () => {
   const d = new Date();
@@ -38,4 +38,46 @@ export function getActivePointConfig(merit: MeritConfig): AiPointConfig {
     keywordRules: merit.keywordRules,
     aiKeywords: merit.aiKeywords
   };
+}
+
+export function extractEntityTag(title: string): string | null {
+  if (!title) return null;
+  const match = title.match(/\b([A-Z]{2,4})\s*(\d{1,4}[A-Z]?)\b/);
+  if (match) {
+    return `${match[1]}${match[2]}`.replace(/\s+/g, '').toUpperCase();
+  }
+  const altMatch = title.match(/([A-Z]{2,4})\s*(\d{2,4})/);
+  if (altMatch) {
+    return `${altMatch[1]}${altMatch[2]}`.replace(/\s+/g, '').toUpperCase();
+  }
+  return null;
+}
+
+export function resolveParentTaskId(title: string, category: string, existingTasks: Task[]) {
+  const entityTag = extractEntityTag(title);
+  if (!entityTag) {
+    return { entityTag: null, parentTaskId: null };
+  }
+
+  // Filter tasks in the same category with matching entityTag
+  const matchingTasks = existingTasks.filter(t => {
+    // Resolve category of the existing task (or check task.category directly if populated)
+    const tCat = t.category;
+    if (tCat !== category) return false;
+
+    const tTag = t.entityTag || extractEntityTag(t.title);
+    return tTag === entityTag;
+  });
+
+  if (matchingTasks.length > 0) {
+    // Link the oldest task as parent. Sort by commencementDate ascending.
+    const sorted = [...matchingTasks].sort((a, b) => {
+      const aTime = new Date(a.commencementDate || 0).getTime();
+      const bTime = new Date(b.commencementDate || 0).getTime();
+      return aTime - bTime;
+    });
+    return { entityTag, parentTaskId: sorted[0].id };
+  }
+
+  return { entityTag, parentTaskId: null };
 }
