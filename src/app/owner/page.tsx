@@ -2004,7 +2004,16 @@ export default function OwnerReconstructedDashboard() {
             <h1 className="text-base font-black font-headline uppercase tracking-widest text-[#1a2620] flex items-center gap-2">
               KPI Merit 
               {authProfile?.is_manager ? (
-                <span className="text-[9px] bg-[#406c58]/10 border border-[#406c58]/20 text-[#406c58] font-bold px-2.5 py-0.5 rounded-full uppercase">CEO Suite</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] bg-[#406c58]/10 border border-[#406c58]/20 text-[#406c58] font-bold px-2.5 py-0.5 rounded-full uppercase">CEO Suite</span>
+                  <a
+                    href="/"
+                    className="text-[9px] bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase cursor-pointer transition-all active:scale-95 animate-pulse"
+                    title="Switch to Staff Dashboard View"
+                  >
+                    Staff Dashboard
+                  </a>
+                </div>
               ) : (
                 <span className="text-[9px] bg-stone-100 border border-stone-200 text-stone-600 font-bold px-2.5 py-0.5 rounded-full uppercase">Staff Dashboard</span>
               )}
