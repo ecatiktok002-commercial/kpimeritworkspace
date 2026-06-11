@@ -247,7 +247,7 @@ export default function UnifiedMeritApp() {
   const debounceRef = useRef<any>(null);
 
   // Settings & Economy inputs
-  const [weeklyThresholdInput, setWeeklyThresholdInput] = useState(975);
+  const [weeklyThresholdInput, setWeeklyThresholdInput] = useState(1500);
   const [newBounty, setNewBounty] = useState({ title: '', description: '', points: 100 });
   const [newReward, setNewReward] = useState({ title: '', description: '', points: 500, icon: 'card_giftcard' });
 
@@ -436,7 +436,7 @@ export default function UnifiedMeritApp() {
         .maybeSingle();
       if (meritData?.value) {
         setMeritConfig(meritData.value as MeritConfig);
-        setWeeklyThresholdInput((meritData.value as MeritConfig).weeklyThreshold || 975);
+        setWeeklyThresholdInput((meritData.value as MeritConfig).weeklyThreshold || 1500);
       }
 
       // 4. Tasks
@@ -945,7 +945,7 @@ export default function UnifiedMeritApp() {
     if (error) {
       showAlert('Failed to save task: ' + error.message, 'error');
     } else {
-      showAlert(editingTask ? 'Task specifications updated.' : 'New task decomposed.');
+      showAlert(editingTask ? 'Task updated.' : 'New task decomposed.');
       setTaskModalOpen(false);
       fetchData();
     }
@@ -1500,7 +1500,7 @@ export default function UnifiedMeritApp() {
     const newId = crypto.randomUUID();
     const newTask: Task = {
       id: newId,
-      title: 'Untitled Spec',
+      title: 'Untitled Task',
       note: formatNoteWithMetadata('', category, initiative),
       totalSec: 3600,
       elapsedSec: 0,
@@ -1520,7 +1520,7 @@ export default function UnifiedMeritApp() {
     
     const taskPayload = {
       id: newId,
-      title: 'Untitled Spec',
+      title: 'Untitled Task',
       note: newTask.note,
       total_sec: 3600,
       elapsed_sec: 0,
@@ -1537,7 +1537,7 @@ export default function UnifiedMeritApp() {
     };
     
     await supabase.from('tasks').insert([taskPayload]);
-    showAlert('New specification draft created.');
+    showAlert('New task draft created.');
     fetchData();
   };
 
@@ -1856,16 +1856,40 @@ export default function UnifiedMeritApp() {
     return staffMissions.filter(t => t.status === 'completed');
   }, [staffMissions]);
 
+  // Helper: get Monday 00:00 and Friday 23:59:59 of current week (Malaysia Time)
+  const getWeekBounds = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon...6=Sat
+    const diffToMon = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMon);
+    monday.setHours(0, 0, 0, 0);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+    return { monday, friday };
+  };
+
+  // Calculate weekly points from completed tasks (Mon-Fri only)
+  const calcWeeklyPointsForMember = (memberId: string) => {
+    const { monday, friday } = getWeekBounds();
+    const activePointConfig = getActivePointConfig(meritConfig);
+    const weekTasks = tasks.filter(t => {
+      if (t.status !== 'completed' || t.ownerId !== memberId) return false;
+      const completedDate = t.completedAt ? new Date(t.completedAt) : null;
+      if (!completedDate) return false;
+      return completedDate >= monday && completedDate <= friday;
+    });
+    return weekTasks.reduce((sum, t) => {
+      const pc = calculateTaskPoints(t.title, t.note || '', t.elapsedSec ? t.elapsedSec / 60 : 0, activePointConfig, undefined, t.impact as any, t.complexity as any);
+      return sum + pc.points;
+    }, 0);
+  };
+
   const weeklyPoints = useMemo(() => {
-    const finishedLogs = activityLog.filter(a => a.staffId === authProfile?.id && a.type === 'points_earned');
-    const fromLogs = finishedLogs.reduce((sum, log) => sum + (log.points || 0), 0);
-    // Fallback: if no activity log entries, use the stored total_points from profile
-    if (fromLogs === 0) {
-      const member = team.find(t => t.id === authProfile?.id);
-      return member?.monthPoints || 0;
-    }
-    return fromLogs;
-  }, [activityLog, authProfile, team]);
+    if (!authProfile?.id) return 0;
+    return calcWeeklyPointsForMember(authProfile.id);
+  }, [tasks, authProfile, meritConfig]);
 
   const weeklyEfficiency = useMemo(() => {
     const finishedLogs = activityLog.filter(a => a.staffId === authProfile?.id && a.type === 'points_earned' && a.efficiencyScore !== undefined);
@@ -2365,7 +2389,7 @@ export default function UnifiedMeritApp() {
                                 </div>
                               </div>
                               <span className="text-[8px] font-black text-stone-550 bg-stone-100 border border-[#e1e7e1] px-2 py-0.5 rounded-lg shrink-0 font-mono">
-                                {folderAllTasks.length} spec{folderAllTasks.length !== 1 ? 's' : ''}
+                                {folderAllTasks.length} task{folderAllTasks.length !== 1 ? 's' : ''}
                               </span>
                             </div>
 
@@ -2385,7 +2409,7 @@ export default function UnifiedMeritApp() {
                             </div>
 
                             {/* Task List: show ALL statuses when department filter is active */}
-                            <div className="max-h-[385px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
+                            <div className="max-h-[240px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
                               {/* Queued Tasks (shown when department filter is active) */}
                               {showAllStatuses && queuedTasks.length > 0 && (
                                 <>
@@ -2550,7 +2574,7 @@ export default function UnifiedMeritApp() {
                       </span>
                       <span className="material-symbols-outlined text-[12px]">chevron_right</span>
                       <span className="text-stone-600 truncate max-w-[150px]">
-                        {selectedTask.title || 'Untitled Spec'}
+                        {selectedTask.title || 'Untitled Task'}
                       </span>
                     </div>
                   );
@@ -2566,14 +2590,14 @@ export default function UnifiedMeritApp() {
                       value={selectedTask.title}
                       onChange={e => updateSelectedTaskField({ title: e.target.value })}
                       className="w-full text-2xl font-bold bg-transparent outline-none border-b border-stone-200 focus:border-[#406c58]/40 pb-2 text-[#1a2620] font-headline tracking-tight"
-                      placeholder="Untitled Spec"
+                      placeholder="Untitled Task"
                     />
                   </div>
 
                   {/* Obsidian Metadata Properties Block */}
                   <div className="bg-[#f4f6f4] border border-[#e1e7e1] rounded-2xl p-4 space-y-3.5 shrink-0 text-xs">
                     <div className="text-[9px] font-black uppercase tracking-widest text-[#406c58] border-b border-[#e1e7e1] pb-1.5 mb-2 font-headline">
-                      Spec Properties
+                      Task Properties
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -2790,7 +2814,7 @@ export default function UnifiedMeritApp() {
                       onClick={handleSaveSelectedTask}
                       className="px-5 py-2.5 bg-[#406c58] hover:bg-[#335746] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.97] active:translate-y-[0.5px] shadow-md cursor-pointer"
                     >
-                      Save Spec
+                      Save Task
                     </button>
                   </div>
 
@@ -2799,7 +2823,7 @@ export default function UnifiedMeritApp() {
                     {selectedTask.status === 'completed' ? (
                       <span className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[14px]">verified</span>
-                        Spec Completed
+                        Task Completed
                       </span>
                     ) : selectedTask.status === 'running' ? (
                       <div className="flex items-center gap-3 bg-amber-50/50 border border-amber-200 rounded-xl px-3 py-1">
@@ -2830,7 +2854,7 @@ export default function UnifiedMeritApp() {
                           onClick={() => handleForceComplete(selectedTask.id)}
                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all duration-150 active:scale-[0.97] active:translate-y-[0.5px] cursor-pointer"
                         >
-                          Complete Spec
+                          Complete Task
                         </button>
                       </div>
                     )}
@@ -2888,7 +2912,7 @@ export default function UnifiedMeritApp() {
                             </div>
                             
                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${efficiencyColor}`}>
-                              Points: {member.monthPoints || 0}
+                              Points: {calcWeeklyPointsForMember(member.id)}
                             </span>
                           </div>
 
@@ -3229,7 +3253,7 @@ export default function UnifiedMeritApp() {
                       cx="48" cy="48" r="40" 
                       stroke="#406c58" strokeWidth="6" fill="transparent" 
                       strokeDasharray={251.2}
-                      strokeDashoffset={251.2 - (251.2 * Math.min(100, (weeklyPoints / (meritConfig.weeklyThreshold || 975)) * 100)) / 100}
+                      strokeDashoffset={251.2 - (251.2 * Math.min(100, (weeklyPoints / (meritConfig.weeklyThreshold || 1500)) * 100)) / 100}
                       className="transition-all duration-1000"
                     />
                   </svg>
@@ -3240,7 +3264,7 @@ export default function UnifiedMeritApp() {
                 </div>
 
                 <h4 className="text-xs font-black uppercase text-[#1a2620] mt-3 tracking-widest">Weekly Performance</h4>
-                <p className="text-[8px] text-stone-450 uppercase font-black tracking-widest mt-1">Goal: {meritConfig.weeklyThreshold || 975} pts</p>
+                <p className="text-[8px] text-stone-450 uppercase font-black tracking-widest mt-1">Goal: {meritConfig.weeklyThreshold || 1500} pts</p>
 
                 <div className="flex justify-between w-full border-t border-[#e1e7e1] pt-3 mt-4 text-[9px] font-black uppercase text-stone-500 tracking-wider">
                   <div>
@@ -3484,7 +3508,7 @@ export default function UnifiedMeritApp() {
                               <button
                                 onClick={() => handleOpenEditTask(task)}
                                 className="p-1.5 hover:bg-stone-100 border border-[#e1e7e1] rounded-lg text-stone-450 hover:text-stone-800 transition-all cursor-pointer"
-                                title="Edit specs"
+                                title="Edit task"
                               >
                                 <span className="material-symbols-outlined text-[15px] block">edit</span>
                               </button>
@@ -3821,7 +3845,7 @@ export default function UnifiedMeritApp() {
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#406c58] mb-1">Operational Alignment</p>
                 <h3 className="text-xl font-black font-headline text-[#1a2620] uppercase tracking-tight">
-                  {editingTask ? 'Edit Mission Spec' : 'Decompose New Task'}
+                  {editingTask ? 'Edit Mission Task' : 'Decompose New Task'}
                 </h3>
               </div>
 
@@ -4071,7 +4095,7 @@ export default function UnifiedMeritApp() {
                   type="submit"
                   className="px-6 py-3 rounded-xl bg-[#406c58] hover:bg-[#335746] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm"
                 >
-                  Save Specification
+                  Save Task
                 </button>
               </div>
             </form>
